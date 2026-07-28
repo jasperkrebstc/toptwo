@@ -4,7 +4,8 @@
  * Adding a new dev control is a one-liner: append a definition to
  * SETTING_DEFS and a labelled slider + number box appears in the dev panel,
  * with persistence and reset handled for free. Read the current value from
- * anywhere with `settings.<id>`.
+ * anywhere with `settings.<id>`. Entries sharing a `group` are shown together
+ * under a heading, in the order listed here.
  */
 
 const STORAGE_KEY = 'toptwo.settings.v1';
@@ -12,12 +13,73 @@ const STORAGE_KEY = 'toptwo.settings.v1';
 export const SETTING_DEFS = [
   {
     id: 'speedMultiplier',
+    group: 'Movement',
     label: 'Player speed',
     hint: 'Multiplier on the base movement speed.',
     min: 0.1,
     max: 5,
     step: 0.05,
     default: 1,
+  },
+  {
+    id: 'bulletSpeed',
+    group: 'Shooting',
+    label: 'Bullet speed',
+    hint: 'World units per second. Applies to bullets already in the air too.',
+    min: 50,
+    max: 2000,
+    step: 10,
+    default: 520,
+  },
+  {
+    id: 'fireCooldown',
+    group: 'Shooting',
+    label: 'Fire cooldown (s)',
+    hint: 'Time between shots while the shoot key is held.',
+    min: 0.05,
+    max: 2,
+    step: 0.05,
+    default: 0.35,
+  },
+  {
+    id: 'dashDistance',
+    group: 'Dash',
+    label: 'Dash distance',
+    hint: 'How far a dash carries you, in world units.',
+    min: 20,
+    max: 400,
+    step: 5,
+    default: 130,
+  },
+  {
+    id: 'dashDuration',
+    group: 'Dash',
+    label: 'Dash duration (s)',
+    hint: 'How long the dash takes. Shorter is snappier.',
+    min: 0.05,
+    max: 0.6,
+    step: 0.01,
+    default: 0.12,
+  },
+  {
+    id: 'dashCooldown',
+    group: 'Dash',
+    label: 'Dash cooldown (s)',
+    hint: 'Wait before you can dash again.',
+    min: 0,
+    max: 5,
+    step: 0.05,
+    default: 1.2,
+  },
+  {
+    id: 'doubleTapWindow',
+    group: 'Dash',
+    label: 'Double-tap window (ms)',
+    hint: 'Max gap between the two taps that trigger a dash.',
+    min: 80,
+    max: 600,
+    step: 10,
+    default: 260,
   },
 ];
 

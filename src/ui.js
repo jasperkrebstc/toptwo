@@ -8,8 +8,17 @@ const MODE_STORAGE_KEY = 'toptwo.mode.v1';
  */
 export function initSettingsUI(listEl, resetButtonEl) {
   const controls = new Map();
+  let currentGroup = null;
 
   for (const def of SETTING_DEFS) {
+    if (def.group && def.group !== currentGroup) {
+      currentGroup = def.group;
+      const heading = document.createElement('h3');
+      heading.className = 'settings-group';
+      heading.textContent = def.group;
+      listEl.append(heading);
+    }
+
     const row = document.createElement('div');
     row.className = 'setting';
 

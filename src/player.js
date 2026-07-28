@@ -1,6 +1,9 @@
-import { BASE_SPEED, PLAYER_RADIUS, WORLD_SIZE } from './config.js';
-import { isDown } from './input.js';
+import { BASE_SPEED, DIRECTIONS, PLAYER_RADIUS, WORLD_SIZE } from './config.js';
+import { isDown, pressLog } from './input.js';
 import { settings } from './settings.js';
+import { spawnBullet } from './bullet.js';
+
+const DIRECTION_NAMES = Object.keys(DIRECTIONS);
 
 /** Build a player instance from its static definition in config.js. */
 export function createPlayer(def) {
@@ -15,9 +18,17 @@ export function createPlayer(def) {
     dx: 0,
     dy: 0,
     // Last non-zero movement direction: this is what the player "looks" at,
-    // and what bullets will be fired along once shooting exists.
+    // and the direction bullets are fired along.
     facingX: 1,
     facingY: 0,
+    fireCooldownLeft: 0,
+    dashCooldownLeft: 0,
+    dashTimeLeft: 0,
+    dashDirX: 0,
+    dashDirY: 0,
+    dashSpeed: 0,
+    // Press count per direction we've already reacted to, for double-tap detection.
+    seenPresses: emptyPressCounts(),
   };
 }
 
@@ -28,10 +39,68 @@ export function resetPlayer(player) {
   player.dy = 0;
   player.facingX = 1;
   player.facingY = 0;
+  player.fireCooldownLeft = 0;
+  player.dashCooldownLeft = 0;
+  player.dashTimeLeft = 0;
 }
 
 /** Advance one player by `dt` seconds. */
-export function updatePlayer(player, dt) {
+export function updatePlayer(player, dt, game) {
+  player.fireCooldownLeft = Math.max(0, player.fireCooldownLeft - dt);
+  player.dashCooldownLeft = Math.max(0, player.dashCooldownLeft - dt);
+
+  detectDash(player);
+
+  if (player.dashTimeLeft > 0) {
+    moveDashing(player, dt);
+  } else {
+    moveWalking(player, dt);
+  }
+
+  clampToWorld(player);
+  handleShooting(player, game);
+}
+
+/**
+ * A dash is two quick taps of the same direction key. We watch the press
+ * count for each direction; when it changes, a new press happened, and if it
+ * landed close enough behind the previous one it's a double tap.
+ */
+function detectDash(player) {
+  for (const name of DIRECTION_NAMES) {
+    const log = pressLog(player.def.keys[name]);
+    if (log.count === player.seenPresses[name]) continue;
+
+    player.seenPresses[name] = log.count;
+    if (log.last - log.prev <= settings.doubleTapWindow) startDash(player, name);
+  }
+}
+
+function startDash(player, directionName) {
+  if (player.dashTimeLeft > 0 || player.dashCooldownLeft > 0) return;
+
+  const dir = DIRECTIONS[directionName];
+  player.dashDirX = dir.x;
+  player.dashDirY = dir.y;
+  player.facingX = dir.x;
+  player.facingY = dir.y;
+  player.dashTimeLeft = settings.dashDuration;
+  player.dashCooldownLeft = settings.dashCooldown;
+  // Freeze the speed now so moving the sliders mid-dash can't distort it.
+  player.dashSpeed = settings.dashDistance / settings.dashDuration;
+}
+
+function moveDashing(player, dt) {
+  const step = Math.min(dt, player.dashTimeLeft);
+  player.x += player.dashDirX * player.dashSpeed * step;
+  player.y += player.dashDirY * player.dashSpeed * step;
+  player.dashTimeLeft -= dt;
+
+  player.dx = player.dashDirX;
+  player.dy = player.dashDirY;
+}
+
+function moveWalking(player, dt) {
   const keys = player.def.keys;
 
   let dx = 0;
@@ -56,9 +125,34 @@ export function updatePlayer(player, dt) {
   const speed = BASE_SPEED * settings.speedMultiplier;
   player.x += dx * speed * dt;
   player.y += dy * speed * dt;
+}
 
-  // Keep the whole dot inside the square.
+function handleShooting(player, game) {
+  const keys = player.def.keys.shoot;
+
+  // A quick tap can go down and up between two frames, so asking "is it held
+  // right now?" alone would silently drop shots. Check the press log for a new
+  // press as well. Held keys still auto-fire at the cooldown rate.
+  const log = pressLog(keys);
+  const tapped = log.count !== player.seenPresses.shoot;
+  player.seenPresses.shoot = log.count;
+
+  if (player.fireCooldownLeft > 0) return;
+  if (!tapped && !isDown(keys)) return;
+
+  spawnBullet(game, player);
+  player.fireCooldownLeft = settings.fireCooldown;
+}
+
+/** Keep the whole dot inside the square. */
+function clampToWorld(player) {
   const r = player.radius;
   player.x = Math.min(WORLD_SIZE - r, Math.max(r, player.x));
   player.y = Math.min(WORLD_SIZE - r, Math.max(r, player.y));
+}
+
+function emptyPressCounts() {
+  const counts = { shoot: 0 };
+  for (const name of DIRECTION_NAMES) counts[name] = 0;
+  return counts;
 }

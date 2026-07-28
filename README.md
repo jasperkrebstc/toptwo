@@ -20,14 +20,23 @@ Then open <http://localhost:8000>.
 
 ## Controls
 
-| | Move |
-|---|---|
-| Player 1 (blue) | `W` `A` `S` `D` |
-| Player 2 (red) | `↑` `←` `↓` `→` |
+| | Move | Shoot |
+|---|---|---|
+| Player 1 (blue) | `W` `A` `S` `D` | `Space` |
+| Player 2 (red) | `↑` `←` `↓` `→` | `Right Shift` (or `Enter`) |
 
 Holding two keys moves diagonally at the same speed as a straight line. The
-short line sticking out of each dot shows which way it is looking — the
-direction shots will travel once shooting exists.
+short line sticking out of each dot shows which way it is looking — bullets
+travel along it.
+
+**Shooting.** Tap to fire a single shot; hold to fire repeatedly at the fire
+cooldown. Bullets fly straight and disappear at the wall. They don't hit
+anything yet.
+
+**Dashing.** Double-tap a movement key to dash in that direction — `W W` dashes
+up, `D D` dashes right. A ring appears around the dot while it's dashing, and
+the dash is unavailable until its cooldown has passed. Both the double-tap
+window and the cooldown are sliders.
 
 ## Develop vs Play mode
 
@@ -48,9 +57,10 @@ src/
   config.js         static config: world size, base speed, player defs + key bindings
   settings.js       live-tunable settings + persistence  <- add sliders here
   ui.js             builds the dev panel; Develop/Play toggle
-  input.js          keyboard state ("is this key down?")
+  input.js          keyboard state: held keys + press history for double taps
   game.js           the game state and its update step
-  player.js         player creation and per-frame movement
+  player.js         player creation, movement, dashing, shooting
+  bullet.js         bullet spawning and flight
   render.js         drawing the world
   loop.js           fixed-timestep game loop
 ```
@@ -60,19 +70,22 @@ src/
 Append one entry to `SETTING_DEFS` in `src/settings.js`:
 
 ```js
-{ id: 'bulletSpeed', label: 'Bullet speed', min: 50, max: 2000, step: 10, default: 600 }
+{ id: 'bulletSize', group: 'Shooting', label: 'Bullet size', min: 1, max: 20, step: 1, default: 4 }
 ```
 
 A labelled slider + number box appears in the panel, the value persists, and
-reset works — no UI code needed. Read it anywhere with `settings.bulletSpeed`.
+reset works — no UI code needed. Read it anywhere with `settings.bulletSize`.
+Entries sharing a `group` are listed together under a heading.
 
 ### Notes on the architecture
 
 - **Fixed timestep.** The simulation steps in 1/60s slices regardless of
   refresh rate, so the game feels the same on any monitor and fast bullets
   can't skip through things later.
-- **Polled input.** The game asks which keys are held rather than reacting to
-  key events; diagonal movement falls out of that for free.
+- **Polled input, recorded presses.** Movement asks which keys are held, so
+  diagonal movement falls out for free. Shooting and dashing instead read a
+  press log written straight from the key events — a tap shorter than one
+  frame would otherwise be missed entirely.
 - **Key bindings are data** in `config.js`, so rebinding later is a config
   change, not a code change.
 - **Facing is the last movement direction**, stored on the player and already
