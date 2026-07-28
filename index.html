@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Top Two</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="mode-develop">
+
+  <header class="topbar">
+    <h1 class="title">Top Two</h1>
+    <div class="mode-switch" id="mode-switch">
+      <button type="button" class="mode-button" data-mode="develop">Develop</button>
+      <button type="button" class="mode-button" data-mode="play">Play</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <!-- Left dev column -->
+    <aside class="panel dev-only" id="panel-left">
+      <h2 class="panel-title">Settings</h2>
+      <div class="settings-list" id="settings-list"></div>
+      <button type="button" class="reset-button" id="reset-settings">Reset to defaults</button>
+    </aside>
+
+    <!-- The world -->
+    <div class="world-wrap">
+      <canvas id="game" width="720" height="720"></canvas>
+    </div>
+
+    <!-- Right dev column (reserved for future tools) -->
+    <aside class="panel dev-only" id="panel-right">
+      <h2 class="panel-title">Controls</h2>
+      <dl class="keymap">
+        <dt>Player 1</dt><dd>W A S D</dd>
+        <dt>Player 2</dt><dd>&uarr; &larr; &darr; &rarr;</dd>
+      </dl>
+    </aside>
+  </main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+:root {
+  --bg: #14161a;
+  --panel-bg: #1c1f25;
+  --border: #2c313a;
+  --text: #e6e8ec;
+  --text-dim: #8b93a1;
+  --accent: #5ea9ff;
+  --world-bg: #0e1013;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ---------- top bar ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.mode-switch {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mode-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.mode-button:hover { color: var(--text); }
+
+.mode-button.is-active {
+  background: var(--accent);
+  color: #0e1013;
+  font-weight: 600;
+}
+
+/* ---------- stage layout ---------- */
+
+.stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
+  min-height: 0;
+}
+
+.world-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+canvas#game {
+  display: block;
+  background: var(--world-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  /* Keep the world square and always fully visible. */
+  width: min(72vw, calc(100vh - 120px));
+  height: min(72vw, calc(100vh - 120px));
+  touch-action: none;
+}
+
+/* ---------- dev panels ---------- */
+
+.panel {
+  width: 240px;
+  flex: none;
+  align-self: stretch;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.panel-title {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setting-label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.setting-row input[type="number"] {
+  width: 64px;
+  flex: none;
+  background: #14161a;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.setting-hint {
+  font-size: 11px;
+  color: #5f6775;
+}
+
+.reset-button {
+  margin-top: 16px;
+  width: 100%;
+  appearance: none;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 7px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.reset-button:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.keymap {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  font-size: 12px;
+}
+
+.keymap dt { color: var(--text-dim); }
+.keymap dd { margin: 0; }
+
+/* ---------- play mode ---------- */
+
+body.mode-play .dev-only { display: none; }
+
+body.mode-play canvas#game {
+  width: min(92vw, calc(100vh - 120px));
+  height: min(92vw, calc(100vh - 120px));
+}
+
+@media (max-width: 1100px) {
+  .stage { flex-wrap: wrap; }
+  .panel { align-self: auto; }
+}
