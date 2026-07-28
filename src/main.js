@@ -1,4 +1,5 @@
-import { createGame, update } from './game.js';
+import { createGame, refillPlayers, update } from './game.js';
+import { onSettingsChange } from './settings.js';
 import { initInput } from './input.js';
 import { startLoop } from './loop.js';
 import { createRenderer } from './render.js';
@@ -19,6 +20,12 @@ initSettingsUI(
   document.getElementById('reset-settings'),
 );
 initModeUI(document.getElementById('mode-switch'));
+
+// Raising the health or shield maximum should show up immediately while
+// tuning, rather than only after the next death.
+onSettingsChange((id) => {
+  if (id === null || id === 'maxHealth' || id === 'maxShield') refillPlayers(game);
+});
 
 startLoop({
   update: (dt) => update(game, dt),

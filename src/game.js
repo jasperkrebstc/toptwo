@@ -1,6 +1,7 @@
 import { PLAYERS } from './config.js';
-import { createPlayer, resetPlayer, updatePlayer } from './player.js';
+import { createPlayer, refillStats, resetPlayer, updatePlayer } from './player.js';
 import { updateBullets } from './bullet.js';
+import { resolveHits } from './combat.js';
 
 /**
  * The whole game state lives here. Everything that will be added later
@@ -19,9 +20,15 @@ export function update(game, dt) {
     updatePlayer(player, dt, game);
   }
   updateBullets(game, dt);
+  resolveHits(game);
 }
 
 export function resetGame(game) {
   for (const player of game.players) resetPlayer(player);
   game.bullets.length = 0;
+}
+
+/** Top both players back up — used when the health or shield maximum changes. */
+export function refillPlayers(game) {
+  for (const player of game.players) refillStats(player);
 }

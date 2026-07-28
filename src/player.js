@@ -2,6 +2,7 @@ import { BASE_SPEED, DIRECTIONS, PLAYER_RADIUS, WORLD_SIZE } from './config.js';
 import { isDown, pressLog } from './input.js';
 import { settings } from './settings.js';
 import { spawnBullet } from './bullet.js';
+import { regenShield } from './combat.js';
 
 const DIRECTION_NAMES = Object.keys(DIRECTIONS);
 
@@ -27,6 +28,13 @@ export function createPlayer(def) {
     dashDirX: 0,
     dashDirY: 0,
     dashSpeed: 0,
+    health: settings.maxHealth,
+    shield: settings.maxShield,
+    // Seconds since this player last took damage; drives shield recovery.
+    timeSinceHit: Infinity,
+    alive: true,
+    deadTimeLeft: 0,
+    deaths: 0,
     // Press count per direction we've already reacted to, for double-tap detection.
     seenPresses: emptyPressCounts(),
   };
@@ -42,10 +50,27 @@ export function resetPlayer(player) {
   player.fireCooldownLeft = 0;
   player.dashCooldownLeft = 0;
   player.dashTimeLeft = 0;
+  refillStats(player);
+}
+
+/** Back to full health and shield — on respawn, or when the max sliders move. */
+export function refillStats(player) {
+  player.health = settings.maxHealth;
+  player.shield = settings.maxShield;
+  player.timeSinceHit = Infinity;
+  player.alive = true;
+  player.deadTimeLeft = 0;
 }
 
 /** Advance one player by `dt` seconds. */
 export function updatePlayer(player, dt, game) {
+  if (!player.alive) {
+    player.deadTimeLeft -= dt;
+    if (player.deadTimeLeft <= 0) resetPlayer(player);
+    return;
+  }
+
+  regenShield(player, dt);
   player.fireCooldownLeft = Math.max(0, player.fireCooldownLeft - dt);
   player.dashCooldownLeft = Math.max(0, player.dashCooldownLeft - dt);
 

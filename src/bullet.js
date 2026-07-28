@@ -13,6 +13,10 @@ export function spawnBullet(game, player) {
     color: player.color,
     x: player.x + player.facingX * offset,
     y: player.y + player.facingY * offset,
+    // Where the bullet was at the start of the step, so hit detection can
+    // test the whole path it travelled rather than just its current spot.
+    prevX: player.x + player.facingX * offset,
+    prevY: player.y + player.facingY * offset,
     dx: player.facingX,
     dy: player.facingY,
     radius: BULLET_RADIUS,
@@ -26,6 +30,8 @@ export function updateBullets(game, dt) {
 
   for (let i = game.bullets.length - 1; i >= 0; i--) {
     const bullet = game.bullets[i];
+    bullet.prevX = bullet.x;
+    bullet.prevY = bullet.y;
     bullet.x += bullet.dx * speed * dt;
     bullet.y += bullet.dy * speed * dt;
 

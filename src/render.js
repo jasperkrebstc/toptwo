@@ -1,4 +1,9 @@
 import { WORLD_SIZE } from './config.js';
+import { settings } from './settings.js';
+
+const BAR_WIDTH = 34;
+const BAR_HEIGHT = 4;
+const SHIELD_COLOR = '#9fe8ff';
 
 /**
  * Draws the world. Canvas pixels map 1:1 to world units, so nothing here
@@ -14,7 +19,9 @@ export function createRenderer(canvas) {
       drawBullet(ctx, bullet);
     }
     for (const player of game.players) {
+      if (!player.alive) continue;
       drawPlayer(ctx, player);
+      drawBars(ctx, player);
     }
   };
 }
@@ -49,6 +56,31 @@ function drawPlayer(ctx, player) {
     player.y + player.facingY * noseLength,
   );
   ctx.stroke();
+}
+
+/**
+ * Health bar under the dot, with the shield as a thinner bar just above it.
+ * The shield bar is skipped entirely when shields are turned off.
+ */
+function drawBars(ctx, player) {
+  const left = player.x - BAR_WIDTH / 2;
+  const healthY = player.y + player.radius + 8;
+
+  drawBar(ctx, left, healthY, player.health / settings.maxHealth, player.color);
+
+  if (settings.maxShield > 0) {
+    drawBar(ctx, left, healthY - BAR_HEIGHT - 2, player.shield / settings.maxShield, SHIELD_COLOR);
+  }
+}
+
+function drawBar(ctx, x, y, fraction, color) {
+  const filled = Math.max(0, Math.min(1, fraction));
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.fillRect(x, y, BAR_WIDTH, BAR_HEIGHT);
+
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, BAR_WIDTH * filled, BAR_HEIGHT);
 }
 
 function drawBullet(ctx, bullet) {

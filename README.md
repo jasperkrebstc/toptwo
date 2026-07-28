@@ -30,8 +30,15 @@ short line sticking out of each dot shows which way it is looking — bullets
 travel along it.
 
 **Shooting.** Tap to fire a single shot; hold to fire repeatedly at the fire
-cooldown. Bullets fly straight and disappear at the wall. They don't hit
-anything yet.
+cooldown. Bullets fly straight, disappear at the wall, and damage the *other*
+player on contact — your own bullets pass through you.
+
+**Health and shield.** Two bars sit under each dot: shield on top (light blue),
+health below (the player's colour). Damage comes off the shield first and
+overflows into health. The shield starts recovering once a player has gone
+untouched for the shield delay, and any hit restarts that clock. Health never
+recovers — only dying restores it. At zero health a player disappears for the
+respawn delay, then returns at their spawn point at full health and shield.
 
 **Dashing.** Double-tap a movement key to dash in that direction — `W W` dashes
 up, `D D` dashes right. A ring appears around the dot while it's dashing, and
@@ -61,6 +68,7 @@ src/
   game.js           the game state and its update step
   player.js         player creation, movement, dashing, shooting
   bullet.js         bullet spawning and flight
+  combat.js         hit detection, damage, shield recovery, death
   render.js         drawing the world
   loop.js           fixed-timestep game loop
 ```
@@ -88,5 +96,9 @@ Entries sharing a `group` are listed together under a heading.
   frame would otherwise be missed entirely.
 - **Key bindings are data** in `config.js`, so rebinding later is a config
   change, not a code change.
-- **Facing is the last movement direction**, stored on the player and already
-  drawn — shooting only has to read it.
+- **Facing is the last movement direction**, stored on the player and drawn as
+  the nose line; shooting just reads it.
+- **Swept hit detection.** A hit tests the whole segment a bullet crossed this
+  step, not just where it ended up. At the top of the bullet-speed slider a
+  bullet moves further per step than a player is wide, so a position-only
+  check would let it pass straight through.
