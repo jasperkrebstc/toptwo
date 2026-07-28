@@ -2,6 +2,7 @@ import { PLAYERS } from './config.js';
 import { createPlayer, refillStats, resetPlayer, updatePlayer } from './player.js';
 import { updateBullets } from './bullet.js';
 import { resolveHits } from './combat.js';
+import { generateObstacles } from './obstacles.js';
 
 /**
  * The whole game state lives here. Everything that will be added later
@@ -11,6 +12,7 @@ export function createGame() {
   return {
     players: PLAYERS.map(createPlayer),
     bullets: [],
+    obstacles: generateObstacles(),
   };
 }
 
@@ -31,4 +33,10 @@ export function resetGame(game) {
 /** Top both players back up — used when the health or shield maximum changes. */
 export function refillPlayers(game) {
   for (const player of game.players) refillStats(player);
+}
+
+/** Rebuild the map — used when the seed or any map setting changes. */
+export function regenerateMap(game) {
+  game.obstacles = generateObstacles();
+  game.bullets.length = 0;
 }

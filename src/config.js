@@ -12,16 +12,8 @@ export const BASE_SPEED = 220;
 export const PLAYER_RADIUS = 10;
 export const BULLET_RADIUS = 4;
 
-/**
- * Dash directions, relative to where the player is pointing. A and D turn the
- * player when tapped once, but sidestep when double-tapped.
- */
-export const DASH_ACTIONS = {
-  forward: (heading) => ({ x: Math.cos(heading), y: Math.sin(heading) }),
-  back: (heading) => ({ x: -Math.cos(heading), y: -Math.sin(heading) }),
-  turnLeft: (heading) => ({ x: Math.sin(heading), y: -Math.cos(heading) }),
-  turnRight: (heading) => ({ x: -Math.sin(heading), y: Math.cos(heading) }),
-};
+/** Reverse is this fraction of the forward top speed. */
+export const REVERSE_FACTOR = 0.55;
 
 /**
  * One entry per player. `keys` maps an action to the KeyboardEvent.code

@@ -1,6 +1,7 @@
 import { BULLET_RADIUS } from './config.js';
 import { settings } from './settings.js';
 import { headingVector } from './player.js';
+import { segmentHitsObstacle } from './obstacles.js';
 
 /**
  * Bullets travel in a straight line along the direction the shooter was
@@ -40,8 +41,17 @@ export function updateBullets(game, dt) {
     bullet.x += bullet.dx * speed * dt;
     bullet.y += bullet.dy * speed * dt;
 
-    if (isOutOfWorld(bullet)) game.bullets.splice(i, 1);
+    if (isOutOfWorld(bullet) || hitsCover(bullet, game.obstacles)) {
+      game.bullets.splice(i, 1);
+    }
   }
+}
+
+/** Boxes stop bullets, so cover is real cover. */
+function hitsCover(bullet, obstacles) {
+  return segmentHitsObstacle(
+    bullet.prevX, bullet.prevY, bullet.x, bullet.y, bullet.radius, obstacles,
+  );
 }
 
 function isOutOfWorld(bullet) {

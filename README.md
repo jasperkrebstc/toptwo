@@ -44,10 +44,23 @@ untouched for the shield delay, and any hit restarts that clock. Health never
 recovers — only dying restores it. At zero health a player disappears for the
 respawn delay, then returns at their spawn point at full health and shield.
 
-**Dashing.** Double-tap a movement key to dash. `W W` lunges forward and `S S`
-backwards; `A A` and `D D` sidestep left and right *without turning*, which is
-the only way to move sideways. A ring appears around the dot while it's
-dashing, and the dash is unavailable until its cooldown has passed.
+**Sidestepping.** Double-tap `A` or `D` to sidestep left or right *without
+turning* — the only way to move sideways. It costs stamina and has a cooldown,
+and a ring shows on the dot while it runs.
+
+**Sprinting.** Double-tap and hold forward to sprint: higher top speed, but
+your turn rate drops, so sprinting commits you to a line. It drains stamina for
+as long as it lasts, and ends when you let go, reverse, or run dry. A streak
+trails the dot showing the direction you are actually travelling — which is not
+the direction you're pointing once you start to drift.
+
+**Stamina** is the amber bar, below health. Sidesteps and sprinting both draw
+from it. It refills after a pause with no spending.
+
+**Cover.** Clusters of boxes are scattered through the world from a seed. They
+block players and stop bullets, so you can't shoot someone you can't see.
+Change the seed for a completely different map; set cover clusters to 0 for an
+open field.
 
 **Finding each other.** The world is much bigger than one viewport. The
 background grid is what makes your movement and rotation readable, and when
@@ -74,9 +87,11 @@ src/
   ui.js             builds the dev panel; Develop/Play toggle
   input.js          keyboard state: held keys + press history for double taps
   game.js           the game state and its update step
-  player.js         player creation, driving, turning, dashing, shooting, recoil
+  player.js         driving, turning, sprinting, sidestepping, shooting, stamina
   bullet.js         bullet spawning and flight
   combat.js         hit detection, damage, shield recovery, death
+  obstacles.js      seeded map generation + collision against boxes
+  rng.js            seeded random numbers
   render.js         one rotating camera per player: grid, entities, HUD
   loop.js           fixed-timestep game loop
 ```
@@ -92,6 +107,44 @@ Append one entry to `SETTING_DEFS` in `src/settings.js`:
 A labelled slider + number box appears in the panel, the value persists, and
 reset works — no UI code needed. Read it anywhere with `settings.bulletSize`.
 Entries sharing a `group` are listed together under a heading.
+
+### The movement model
+
+Everything a player does moves one velocity vector. That is the whole engine,
+and it is worth understanding before adding to it, because new mechanics should
+almost always be expressed as a force or an impulse on this vector rather than
+as another special case.
+
+Each step, in `player.js`:
+
+1. **Split** the velocity into the part along the heading (`forward`) and the
+   part across it (`lateral`).
+2. **Push** `forward` with the engine when W or S is held, capped at top speed;
+   with no input it decays by `braking`.
+3. **Bleed** `lateral` away at the `grip` rate.
+4. **Recombine** and integrate.
+
+Drifting falls out of step 3 for free. Turning changes where you *point*, not
+where you are already *travelling*, so the moment you turn, part of your old
+velocity becomes lateral. At high grip it vanishes immediately and the car
+sticks to its nose; at low grip it survives and you slide. There is no separate
+"drift mode" — one slider moves continuously between the two feels.
+
+Everything else is an impulse into the same vector:
+
+- **Recoil** subtracts along the heading when you fire, so braking and grip
+  decide how far you slide, and firing while reversing genuinely speeds you up.
+- **Sidesteps** add a temporary sideways velocity for their duration, on top of
+  normal driving, so you can sidestep while still moving forward.
+- **Walls and boxes** cancel only the component of velocity pointing into the
+  surface, which is what makes you slide along cover instead of sticking to it.
+
+Turning has its own miniature version of the same idea: an angular velocity
+that ramps toward the requested rate rather than snapping to it.
+
+This is the base to build on. Knockback from explosions, being shoved by
+another player, ice patches, conveyor floors, a tow rope — all of them are
+impulses or per-region changes to `braking`/`grip`, not new systems.
 
 ### Notes on the architecture
 
@@ -115,4 +168,11 @@ Entries sharing a `group` are listed together under a heading.
 - **Swept hit detection.** A hit tests the whole segment a bullet crossed this
   step, not just where it ended up. At the top of the bullet-speed slider a
   bullet moves further per step than a player is wide, so a position-only
-  check would let it pass straight through.
+  check would let it pass straight through. The same segment test decides
+  whether a bullet is stopped by cover.
+- **Sub-stepped movement.** A player's move is split into hops no longer than
+  their own radius before collisions are resolved. A long, fast sidestep would
+  otherwise jump clean through a box between two frames.
+- **The map is a pure function of the seed.** Same seed, same map, every
+  reload — no state to save, and both players are guaranteed to see the same
+  world.

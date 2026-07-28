@@ -8,6 +8,9 @@ const VIEW_RADIUS = Math.hypot(HALF_VIEW, HALF_VIEW);
 const BAR_WIDTH = 34;
 const BAR_HEIGHT = 4;
 const SHIELD_COLOR = '#9fe8ff';
+const STAMINA_COLOR = '#ffd166';
+const OBSTACLE_FILL = '#2b3038';
+const OBSTACLE_EDGE = '#3d444f';
 const GRID_COLOR = 'rgba(255, 255, 255, 0.07)';
 const GRID_COLOR_MAJOR = 'rgba(255, 255, 255, 0.15)';
 const WORLD_FILL = '#0e1013';
@@ -38,6 +41,7 @@ export function createViewRenderer(canvas, viewerId) {
 
     drawWorld(ctx, viewer);
     drawGrid(ctx, viewer);
+    drawObstacles(ctx, viewer, game.obstacles);
     for (const bullet of game.bullets) drawBullet(ctx, bullet);
     for (const player of game.players) {
       if (player.alive) drawPlayer(ctx, player);
@@ -108,7 +112,43 @@ function isMajor(coordinate, grid) {
   return Math.round(coordinate / grid) % 5 === 0;
 }
 
+/** Solid cover. Only the boxes that could be in shot are drawn. */
+function drawObstacles(ctx, viewer, obstacles) {
+  ctx.fillStyle = OBSTACLE_FILL;
+  ctx.strokeStyle = OBSTACLE_EDGE;
+  ctx.lineWidth = 1;
+
+  for (const box of obstacles) {
+    if (Math.abs(box.x + box.w / 2 - viewer.x) > VIEW_RADIUS + box.w) continue;
+    if (Math.abs(box.y + box.h / 2 - viewer.y) > VIEW_RADIUS + box.h) continue;
+
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
+  }
+}
+
 function drawPlayer(ctx, player) {
+  // A streak trailing the direction of travel while sprinting: it shows both
+  // that you're sprinting and which way your momentum actually points, which
+  // are different things the moment you start to drift.
+  if (player.sprinting) {
+    const speed = Math.hypot(player.vx, player.vy);
+    if (speed > 1) {
+      ctx.strokeStyle = player.color;
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y);
+      ctx.lineTo(
+        player.x - (player.vx / speed) * player.radius * 2.6,
+        player.y - (player.vy / speed) * player.radius * 2.6,
+      );
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // A ring while dashing, so the dash is readable at a glance when tuning it.
   if (player.dashTimeLeft > 0) {
     ctx.strokeStyle = player.color;
@@ -153,11 +193,13 @@ function drawBullet(ctx, bullet) {
 function drawBars(ctx, player, at) {
   const left = at.x - BAR_WIDTH / 2;
   const healthY = at.y + PLAYER_RADIUS + 10;
+  const step = BAR_HEIGHT + 2;
 
   drawBar(ctx, left, healthY, player.health / settings.maxHealth, player.color);
+  drawBar(ctx, left, healthY + step, player.stamina / settings.maxStamina, STAMINA_COLOR);
 
   if (settings.maxShield > 0) {
-    drawBar(ctx, left, healthY - BAR_HEIGHT - 2, player.shield / settings.maxShield, SHIELD_COLOR);
+    drawBar(ctx, left, healthY - step, player.shield / settings.maxShield, SHIELD_COLOR);
   }
 }
 

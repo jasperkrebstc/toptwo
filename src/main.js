@@ -1,4 +1,4 @@
-import { createGame, refillPlayers, update } from './game.js';
+import { createGame, refillPlayers, regenerateMap, update } from './game.js';
 import { onSettingsChange } from './settings.js';
 import { PLAYERS } from './config.js';
 import { initInput } from './input.js';
@@ -25,10 +25,16 @@ initSettingsUI(
 );
 initModeUI(document.getElementById('mode-switch'));
 
-// Raising the health or shield maximum should show up immediately while
-// tuning, rather than only after the next death.
+// Raising a maximum should show up immediately while tuning, rather than only
+// after the next death; changing the map settings should rebuild the map.
+const REFILL_ON = new Set(['maxHealth', 'maxShield', 'maxStamina']);
+const REGENERATE_ON = new Set([
+  'worldSeed', 'worldSize', 'gridSize', 'obstacleClusters', 'clusterSize',
+]);
+
 onSettingsChange((id) => {
-  if (id === null || id === 'maxHealth' || id === 'maxShield') refillPlayers(game);
+  if (id === null || REFILL_ON.has(id)) refillPlayers(game);
+  if (id === null || REGENERATE_ON.has(id)) regenerateMap(game);
 });
 
 startLoop({
