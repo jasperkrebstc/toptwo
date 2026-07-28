@@ -1,24 +1,29 @@
-import { BULLET_RADIUS, WORLD_SIZE } from './config.js';
+import { BULLET_RADIUS } from './config.js';
 import { settings } from './settings.js';
+import { headingVector } from './player.js';
 
 /**
  * Bullets travel in a straight line along the direction the shooter was
- * looking, and vanish when they leave the world. They don't hit anything yet.
+ * pointing, and vanish when they leave the world.
  */
 export function spawnBullet(game, player) {
+  const dir = headingVector(player);
   // Start at the edge of the dot so a bullet never appears on top of its owner.
   const offset = player.radius + BULLET_RADIUS + 1;
+  const x = player.x + dir.x * offset;
+  const y = player.y + dir.y * offset;
+
   game.bullets.push({
     ownerId: player.id,
     color: player.color,
-    x: player.x + player.facingX * offset,
-    y: player.y + player.facingY * offset,
+    x,
+    y,
     // Where the bullet was at the start of the step, so hit detection can
     // test the whole path it travelled rather than just its current spot.
-    prevX: player.x + player.facingX * offset,
-    prevY: player.y + player.facingY * offset,
-    dx: player.facingX,
-    dy: player.facingY,
+    prevX: x,
+    prevY: y,
+    dx: dir.x,
+    dy: dir.y,
     radius: BULLET_RADIUS,
   });
 }
@@ -41,6 +46,6 @@ export function updateBullets(game, dt) {
 
 function isOutOfWorld(bullet) {
   const r = bullet.radius;
-  return bullet.x < -r || bullet.x > WORLD_SIZE + r
-      || bullet.y < -r || bullet.y > WORLD_SIZE + r;
+  const max = settings.worldSize + r;
+  return bullet.x < -r || bullet.x > max || bullet.y < -r || bullet.y > max;
 }

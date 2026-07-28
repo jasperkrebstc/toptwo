@@ -25,21 +25,33 @@
       <button type="button" class="reset-button" id="reset-settings">Reset to defaults</button>
     </aside>
 
-    <!-- The world -->
-    <div class="world-wrap">
-      <canvas id="game" width="720" height="720"></canvas>
+    <!-- One viewport per player -->
+    <div class="views">
+      <figure class="view view-p1">
+        <figcaption class="view-label">Player 1</figcaption>
+        <canvas id="view-p1" width="520" height="520"></canvas>
+      </figure>
+      <figure class="view view-p2">
+        <figcaption class="view-label">Player 2</figcaption>
+        <canvas id="view-p2" width="520" height="520"></canvas>
+      </figure>
     </div>
 
     <!-- Right dev column (reserved for future tools) -->
     <aside class="panel dev-only" id="panel-right">
       <h2 class="panel-title">Controls</h2>
       <dl class="keymap">
-        <dt>P1 move</dt><dd>W A S D</dd>
+        <dt>P1</dt><dd>W S drive &middot; A D turn</dd>
         <dt>P1 shoot</dt><dd>Space</dd>
-        <dt>P2 move</dt><dd>&uarr; &larr; &darr; &rarr;</dd>
+        <dt>P2</dt><dd>&uarr; &darr; drive &middot; &larr; &rarr; turn</dd>
         <dt>P2 shoot</dt><dd>Right Shift</dd>
-        <dt>Dash</dt><dd>Double-tap a move key</dd>
+        <dt>Dash</dt><dd>Double-tap: W/S lunge, A/D sidestep</dd>
       </dl>
+      <p class="panel-note">
+        Each view keeps its own player centred and pointing up — the world
+        turns underneath. An arrow on the edge points at your opponent when
+        they are off screen.
+      </p>
     </aside>
   </main>
 

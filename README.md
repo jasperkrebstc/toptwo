@@ -1,9 +1,11 @@
 # Top Two
 
-A very simple local-multiplayer top-down 2D arcade shooter. Two players, one
-keyboard, one square world.
+A simple local-multiplayer top-down 2D arcade shooter. Two players, one
+keyboard, one square world — shown as split-screen, a viewport per player.
 
-Right now: two dots that move around a square. Everything else builds on top.
+Players handle like small tanks: you drive forward and back along the way you
+are pointing, and steer to aim. Each player's own view keeps them centred and
+pointing up the screen, with the world rotating underneath.
 
 ## Running it
 
@@ -20,18 +22,20 @@ Then open <http://localhost:8000>.
 
 ## Controls
 
-| | Move | Shoot |
-|---|---|---|
-| Player 1 (blue) | `W` `A` `S` `D` | `Space` |
-| Player 2 (red) | `↑` `←` `↓` `→` | `Right Shift` (or `Enter`) |
+| | Drive | Turn | Shoot |
+|---|---|---|---|
+| Player 1 (blue) | `W` `S` | `A` `D` | `Space` |
+| Player 2 (red) | `↑` `↓` | `←` `→` | `Right Shift` (or `Enter`) |
 
-Holding two keys moves diagonally at the same speed as a straight line. The
-short line sticking out of each dot shows which way it is looking — bullets
-travel along it.
+Turning is continuous, so you can aim at any angle — not just the eight the old
+grid-style movement allowed. The barrel sticking out of each dot shows where
+its shots will go.
 
 **Shooting.** Tap to fire a single shot; hold to fire repeatedly at the fire
 cooldown. Bullets fly straight, disappear at the wall, and damage the *other*
-player on contact — your own bullets pass through you.
+player on contact — your own bullets pass through you. Each shot shoves you
+backwards; the kick decays rather than teleporting you, so a burst pushes you
+further than a single shot.
 
 **Health and shield.** Two bars sit under each dot: shield on top (light blue),
 health below (the player's colour). Damage comes off the shield first and
@@ -40,10 +44,14 @@ untouched for the shield delay, and any hit restarts that clock. Health never
 recovers — only dying restores it. At zero health a player disappears for the
 respawn delay, then returns at their spawn point at full health and shield.
 
-**Dashing.** Double-tap a movement key to dash in that direction — `W W` dashes
-up, `D D` dashes right. A ring appears around the dot while it's dashing, and
-the dash is unavailable until its cooldown has passed. Both the double-tap
-window and the cooldown are sliders.
+**Dashing.** Double-tap a movement key to dash. `W W` lunges forward and `S S`
+backwards; `A A` and `D D` sidestep left and right *without turning*, which is
+the only way to move sideways. A ring appears around the dot while it's
+dashing, and the dash is unavailable until its cooldown has passed.
+
+**Finding each other.** The world is much bigger than one viewport. The
+background grid is what makes your movement and rotation readable, and when
+your opponent is off screen an arrow on the edge of your view points at them.
 
 ## Develop vs Play mode
 
@@ -57,19 +65,19 @@ keeps your tuning. **Reset to defaults** puts everything back.
 ## Project layout
 
 ```
-index.html          markup: top bar, dev panels, canvas
+index.html          markup: top bar, dev panels, the two view canvases
 css/style.css       all styling
 src/
   main.js           wires everything together
-  config.js         static config: world size, base speed, player defs + key bindings
+  config.js         static config: view size, base speed, player defs + key bindings
   settings.js       live-tunable settings + persistence  <- add sliders here
   ui.js             builds the dev panel; Develop/Play toggle
   input.js          keyboard state: held keys + press history for double taps
   game.js           the game state and its update step
-  player.js         player creation, movement, dashing, shooting
+  player.js         player creation, driving, turning, dashing, shooting, recoil
   bullet.js         bullet spawning and flight
   combat.js         hit detection, damage, shield recovery, death
-  render.js         drawing the world
+  render.js         one rotating camera per player: grid, entities, HUD
   loop.js           fixed-timestep game loop
 ```
 
@@ -96,8 +104,14 @@ Entries sharing a `group` are listed together under a heading.
   frame would otherwise be missed entirely.
 - **Key bindings are data** in `config.js`, so rebinding later is a config
   change, not a code change.
-- **Facing is the last movement direction**, stored on the player and drawn as
-  the nose line; shooting just reads it.
+- **`heading` is the single source of truth** for where a player points. The
+  cameras, bullets, recoil and dash directions all derive from it, so the aim
+  you see is exactly the aim the simulation uses.
+- **The camera rotates, the world doesn't.** Each view applies one canvas
+  transform (translate to centre, rotate by `-heading - 90°`, translate to the
+  player) and then draws everything in plain world coordinates. Bars and
+  off-screen arrows are drawn after that transform is undone, so they stay
+  upright and readable however the player is turned.
 - **Swept hit detection.** A hit tests the whole segment a bullet crossed this
   step, not just where it ended up. At the top of the bullet-speed slider a
   bullet moves further per step than a player is wide, so a position-only

@@ -82,21 +82,48 @@ body {
   min-height: 0;
 }
 
-.world-wrap {
+.views {
+  flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  gap: 16px;
   min-width: 0;
 }
 
-canvas#game {
+/*
+ * The views share whatever width is left over after the dev panels, and are
+ * capped by the window height so both squares always fit on screen at once.
+ */
+.view {
+  margin: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: calc(100vh - 170px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.view-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.view-p1 .view-label { color: #5ea9ff; }
+.view-p2 .view-label { color: #ff7a6b; }
+
+.view canvas {
   display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
   background: var(--world-bg);
   border: 1px solid var(--border);
   border-radius: 4px;
-  /* Keep the world square and always fully visible. */
-  width: min(72vw, calc(100vh - 120px));
-  height: min(72vw, calc(100vh - 120px));
   touch-action: none;
 }
 
@@ -210,13 +237,19 @@ canvas#game {
 .keymap dt { color: var(--text-dim); }
 .keymap dd { margin: 0; }
 
+.panel-note {
+  margin: 14px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #5f6775;
+}
+
 /* ---------- play mode ---------- */
 
 body.mode-play .dev-only { display: none; }
 
-body.mode-play canvas#game {
-  width: min(92vw, calc(100vh - 120px));
-  height: min(92vw, calc(100vh - 120px));
+body.mode-play .view {
+  max-width: calc(100vh - 130px);
 }
 
 @media (max-width: 1100px) {

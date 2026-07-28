@@ -1,27 +1,31 @@
-import { BASE_SPEED, DIRECTIONS, PLAYER_RADIUS, WORLD_SIZE } from './config.js';
+import { BASE_SPEED, DASH_ACTIONS, PLAYER_RADIUS } from './config.js';
 import { isDown, pressLog } from './input.js';
 import { settings } from './settings.js';
 import { spawnBullet } from './bullet.js';
 import { regenShield } from './combat.js';
 
-const DIRECTION_NAMES = Object.keys(DIRECTIONS);
+const DASH_ACTION_NAMES = Object.keys(DASH_ACTIONS);
 
-/** Build a player instance from its static definition in config.js. */
+/**
+ * Players drive like little tanks: W and S go forward and back along the way
+ * they are pointing, A and D swing that heading around. Everything else in the
+ * game reads `heading` — bullets, recoil, dashes and both cameras.
+ */
 export function createPlayer(def) {
-  return {
+  const player = {
     def,
     id: def.id,
     color: def.color,
-    x: def.spawn.x,
-    y: def.spawn.y,
+    x: 0,
+    y: 0,
+    heading: def.spawn.heading,
     radius: PLAYER_RADIUS,
-    // Movement direction this frame, normalised. Zero when standing still.
-    dx: 0,
-    dy: 0,
-    // Last non-zero movement direction: this is what the player "looks" at,
-    // and the direction bullets are fired along.
-    facingX: 1,
-    facingY: 0,
+    moving: 0,          // -1, 0 or 1: what W/S are asking for
+    turning: 0,         // -1, 0 or 1: what A/D are asking for
+    // Recoil is a velocity that decays, rather than a teleport, so a burst of
+    // shots pushes you further than a single one.
+    recoilVX: 0,
+    recoilVY: 0,
     fireCooldownLeft: 0,
     dashCooldownLeft: 0,
     dashTimeLeft: 0,
@@ -35,18 +39,23 @@ export function createPlayer(def) {
     alive: true,
     deadTimeLeft: 0,
     deaths: 0,
-    // Press count per direction we've already reacted to, for double-tap detection.
+    // Press count per action we've already reacted to, for double-tap detection.
     seenPresses: emptyPressCounts(),
   };
+  resetPlayer(player);
+  player.deaths = 0;
+  return player;
 }
 
 export function resetPlayer(player) {
-  player.x = player.def.spawn.x;
-  player.y = player.def.spawn.y;
-  player.dx = 0;
-  player.dy = 0;
-  player.facingX = 1;
-  player.facingY = 0;
+  const spawn = player.def.spawn;
+  player.x = spawn.fx * settings.worldSize;
+  player.y = spawn.fy * settings.worldSize;
+  player.heading = spawn.heading;
+  player.moving = 0;
+  player.turning = 0;
+  player.recoilVX = 0;
+  player.recoilVY = 0;
   player.fireCooldownLeft = 0;
   player.dashCooldownLeft = 0;
   player.dashTimeLeft = 0;
@@ -60,6 +69,11 @@ export function refillStats(player) {
   player.timeSinceHit = Infinity;
   player.alive = true;
   player.deadTimeLeft = 0;
+}
+
+/** Unit vector for the direction the player is pointing. */
+export function headingVector(player) {
+  return { x: Math.cos(player.heading), y: Math.sin(player.heading) };
 }
 
 /** Advance one player by `dt` seconds. */
@@ -79,20 +93,23 @@ export function updatePlayer(player, dt, game) {
   if (player.dashTimeLeft > 0) {
     moveDashing(player, dt);
   } else {
-    moveWalking(player, dt);
+    turn(player, dt);
+    driveForward(player, dt);
   }
 
+  applyRecoil(player, dt);
   clampToWorld(player);
   handleShooting(player, game);
 }
 
 /**
- * A dash is two quick taps of the same direction key. We watch the press
- * count for each direction; when it changes, a new press happened, and if it
- * landed close enough behind the previous one it's a double tap.
+ * A dash is two quick taps of the same movement key. We watch the press count
+ * for each action; when it changes, a new press happened, and if it landed
+ * close enough behind the previous one it's a double tap. Tapping A or D twice
+ * sidesteps rather than turning.
  */
 function detectDash(player) {
-  for (const name of DIRECTION_NAMES) {
+  for (const name of DASH_ACTION_NAMES) {
     const log = pressLog(player.def.keys[name]);
     if (log.count === player.seenPresses[name]) continue;
 
@@ -101,14 +118,12 @@ function detectDash(player) {
   }
 }
 
-function startDash(player, directionName) {
+function startDash(player, actionName) {
   if (player.dashTimeLeft > 0 || player.dashCooldownLeft > 0) return;
 
-  const dir = DIRECTIONS[directionName];
+  const dir = DASH_ACTIONS[actionName](player.heading);
   player.dashDirX = dir.x;
   player.dashDirY = dir.y;
-  player.facingX = dir.x;
-  player.facingY = dir.y;
   player.dashTimeLeft = settings.dashDuration;
   player.dashCooldownLeft = settings.dashCooldown;
   // Freeze the speed now so moving the sliders mid-dash can't distort it.
@@ -120,36 +135,53 @@ function moveDashing(player, dt) {
   player.x += player.dashDirX * player.dashSpeed * step;
   player.y += player.dashDirY * player.dashSpeed * step;
   player.dashTimeLeft -= dt;
-
-  player.dx = player.dashDirX;
-  player.dy = player.dashDirY;
 }
 
-function moveWalking(player, dt) {
+function turn(player, dt) {
   const keys = player.def.keys;
 
-  let dx = 0;
-  let dy = 0;
-  if (isDown(keys.left)) dx -= 1;
-  if (isDown(keys.right)) dx += 1;
-  if (isDown(keys.up)) dy -= 1;   // canvas y grows downward
-  if (isDown(keys.down)) dy += 1;
+  let turning = 0;
+  if (isDown(keys.turnLeft)) turning -= 1;
+  if (isDown(keys.turnRight)) turning += 1;
+  player.turning = turning;
 
-  // Normalise so diagonals aren't ~41% faster than the cardinals.
-  const length = Math.hypot(dx, dy);
-  if (length > 0) {
-    dx /= length;
-    dy /= length;
-    player.facingX = dx;
-    player.facingY = dy;
-  }
+  if (turning === 0) return;
+  player.heading = normaliseAngle(
+    player.heading + turning * degreesToRadians(settings.turnSpeed) * dt,
+  );
+}
 
-  player.dx = dx;
-  player.dy = dy;
+function driveForward(player, dt) {
+  const keys = player.def.keys;
+
+  let moving = 0;
+  if (isDown(keys.forward)) moving += 1;
+  if (isDown(keys.back)) moving -= 1;
+  player.moving = moving;
+
+  if (moving === 0) return;
 
   const speed = BASE_SPEED * settings.speedMultiplier;
-  player.x += dx * speed * dt;
-  player.y += dy * speed * dt;
+  player.x += Math.cos(player.heading) * moving * speed * dt;
+  player.y += Math.sin(player.heading) * moving * speed * dt;
+}
+
+/** Slide along whatever recoil is left, then let it decay. */
+function applyRecoil(player, dt) {
+  if (player.recoilVX === 0 && player.recoilVY === 0) return;
+
+  player.x += player.recoilVX * dt;
+  player.y += player.recoilVY * dt;
+
+  const decay = Math.exp(-settings.recoilSettle * dt);
+  player.recoilVX *= decay;
+  player.recoilVY *= decay;
+
+  // Stop fussing over vanishingly small values.
+  if (Math.hypot(player.recoilVX, player.recoilVY) < 1) {
+    player.recoilVX = 0;
+    player.recoilVY = 0;
+  }
 }
 
 function handleShooting(player, game) {
@@ -167,17 +199,30 @@ function handleShooting(player, game) {
 
   spawnBullet(game, player);
   player.fireCooldownLeft = settings.fireCooldown;
+
+  player.recoilVX -= Math.cos(player.heading) * settings.recoilKick;
+  player.recoilVY -= Math.sin(player.heading) * settings.recoilKick;
 }
 
 /** Keep the whole dot inside the square. */
 function clampToWorld(player) {
   const r = player.radius;
-  player.x = Math.min(WORLD_SIZE - r, Math.max(r, player.x));
-  player.y = Math.min(WORLD_SIZE - r, Math.max(r, player.y));
+  const max = settings.worldSize - r;
+  player.x = Math.min(max, Math.max(r, player.x));
+  player.y = Math.min(max, Math.max(r, player.y));
+}
+
+function normaliseAngle(angle) {
+  const twoPi = Math.PI * 2;
+  return ((angle % twoPi) + twoPi) % twoPi;
+}
+
+function degreesToRadians(degrees) {
+  return (degrees * Math.PI) / 180;
 }
 
 function emptyPressCounts() {
   const counts = { shoot: 0 };
-  for (const name of DIRECTION_NAMES) counts[name] = 0;
+  for (const name of DASH_ACTION_NAMES) counts[name] = 0;
   return counts;
 }

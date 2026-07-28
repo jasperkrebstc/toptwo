@@ -3,8 +3,8 @@
  * want to tweak live. Anything we want a slider for belongs in settings.js.
  */
 
-/** The world is a square, measured in world units (also the canvas pixels). */
-export const WORLD_SIZE = 720;
+/** Size of one player's viewport, in canvas pixels. Both views are square. */
+export const VIEW_SIZE = 520;
 
 /** Base movement speed in world units per second, before the speed multiplier. */
 export const BASE_SPEED = 220;
@@ -12,29 +12,34 @@ export const BASE_SPEED = 220;
 export const PLAYER_RADIUS = 10;
 export const BULLET_RADIUS = 4;
 
-/** The four directions, as unit vectors. Canvas y grows downward. */
-export const DIRECTIONS = {
-  up: { x: 0, y: -1 },
-  down: { x: 0, y: 1 },
-  left: { x: -1, y: 0 },
-  right: { x: 1, y: 0 },
+/**
+ * Dash directions, relative to where the player is pointing. A and D turn the
+ * player when tapped once, but sidestep when double-tapped.
+ */
+export const DASH_ACTIONS = {
+  forward: (heading) => ({ x: Math.cos(heading), y: Math.sin(heading) }),
+  back: (heading) => ({ x: -Math.cos(heading), y: -Math.sin(heading) }),
+  turnLeft: (heading) => ({ x: Math.sin(heading), y: -Math.cos(heading) }),
+  turnRight: (heading) => ({ x: -Math.sin(heading), y: Math.cos(heading) }),
 };
 
 /**
  * One entry per player. `keys` maps an action to the KeyboardEvent.code
  * values that trigger it, so re-binding later is a data change only.
+ * `spawn` is a fraction of the world, since the world size is tunable.
  */
 export const PLAYERS = [
   {
     id: 'p1',
     label: 'Player 1',
     color: '#5ea9ff',
-    spawn: { x: WORLD_SIZE * 0.3, y: WORLD_SIZE * 0.5 },
+    canvasId: 'view-p1',
+    spawn: { fx: 0.35, fy: 0.5, heading: 0 },          // facing right, towards P2
     keys: {
-      up: ['KeyW'],
-      down: ['KeyS'],
-      left: ['KeyA'],
-      right: ['KeyD'],
+      forward: ['KeyW'],
+      back: ['KeyS'],
+      turnLeft: ['KeyA'],
+      turnRight: ['KeyD'],
       shoot: ['Space'],
     },
   },
@@ -42,12 +47,13 @@ export const PLAYERS = [
     id: 'p2',
     label: 'Player 2',
     color: '#ff7a6b',
-    spawn: { x: WORLD_SIZE * 0.7, y: WORLD_SIZE * 0.5 },
+    canvasId: 'view-p2',
+    spawn: { fx: 0.65, fy: 0.5, heading: Math.PI },    // facing left, towards P1
     keys: {
-      up: ['ArrowUp'],
-      down: ['ArrowDown'],
-      left: ['ArrowLeft'],
-      right: ['ArrowRight'],
+      forward: ['ArrowUp'],
+      back: ['ArrowDown'],
+      turnLeft: ['ArrowLeft'],
+      turnRight: ['ArrowRight'],
       // Right Shift sits just above the arrow keys, so Player 2 can shoot
       // without moving their hand. Enter works too.
       shoot: ['ShiftRight', 'Enter', 'NumpadEnter'],
