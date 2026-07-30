@@ -28,6 +28,7 @@ export function createViewRenderer(canvas, viewerId) {
 
   return function render(game) {
     const viewer = game.players.find((player) => player.id === viewerId);
+    if (!viewer) return;   // this seat is sitting out at the current player count
 
     ctx.fillStyle = VOID_FILL;
     ctx.fillRect(0, 0, VIEW_SIZE, VIEW_SIZE);

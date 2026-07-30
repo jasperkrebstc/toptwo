@@ -1,4 +1,8 @@
-import { SETTING_DEFS, settings, setSetting, resetSettings, onSettingsChange } from './settings.js';
+import {
+  SETTING_DEFS, settings, setSetting, resetSettings, onSettingsChange,
+  listProfiles, activeProfile, switchProfile, createProfile, deleteProfile,
+  onProfilesChange,
+} from './settings.js';
 
 const MODE_STORAGE_KEY = 'toptwo.mode.v1';
 
@@ -103,6 +107,64 @@ export function initSettingsUI(listEl, resetButtonEl) {
   });
 
   syncFromSettings();
+}
+
+/**
+ * Profile picker: choose a saved set of values, branch off a new one, or drop
+ * one. Edits always write straight into the selected profile, so there is
+ * nothing to remember to save.
+ */
+export function initProfilesUI(root) {
+  const select = root.querySelector('#profile-select');
+  const newButton = root.querySelector('#profile-new');
+  const deleteButton = root.querySelector('#profile-delete');
+
+  function refresh() {
+    const names = listProfiles();
+    const active = activeProfile();
+
+    select.replaceChildren(...names.map((name) => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      option.selected = name === active;
+      return option;
+    }));
+
+    deleteButton.disabled = names.length <= 1;
+  }
+
+  select.addEventListener('change', () => {
+    switchProfile(select.value);
+    select.blur();
+  });
+
+  newButton.addEventListener('click', () => {
+    const name = window.prompt('Name for the new profile', suggestName());
+    newButton.blur();
+    if (name === null) return;
+
+    if (!createProfile(name)) {
+      window.alert('That name is empty or already taken.');
+    }
+  });
+
+  deleteButton.addEventListener('click', () => {
+    const name = activeProfile();
+    deleteButton.blur();
+    if (window.confirm(`Delete the profile "${name}"?`)) deleteProfile(name);
+  });
+
+  onProfilesChange(refresh);
+  refresh();
+}
+
+function suggestName() {
+  const taken = new Set(listProfiles());
+  for (let n = 2; ; n++) {
+    const candidate = `Profile ${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
 }
 
 /** Develop / Play toggle. Play mode just hides everything marked .dev-only. */

@@ -1,7 +1,7 @@
 # Top Two
 
-A simple local-multiplayer top-down 2D arcade shooter. Two players, one
-keyboard, one square world — shown as split-screen, a viewport per player.
+A simple local-multiplayer top-down 2D arcade shooter. Two to four players on
+one keyboard, one square world — shown as split-screen, a viewport per player.
 
 Players handle like small tanks: you drive forward and back along the way you
 are pointing, and steer to aim. Each player's own view keeps them centred and
@@ -22,10 +22,19 @@ Then open <http://localhost:8000>.
 
 ## Controls
 
-| | Drive | Turn | Shoot |
-|---|---|---|---|
-| Player 1 (blue) | `W` `S` | `A` `D` | `Space` |
-| Player 2 (red) | `↑` `↓` | `←` `→` | `Right Shift` (or `Enter`) |
+Set **Players** (2–4) in the dev panel; a viewport appears per player.
+
+| | Seat | Drive | Turn | Shoot |
+|---|---|---|---|---|
+| Player 1 (blue) | far left | `W` `S` | `A` `D` | `Q` (or `Space`) |
+| Player 2 (red) | far right | `↑` `↓` | `←` `→` | `Right Shift` (or `Enter`) |
+| Player 3 (green) | middle left | `T` `G` | `F` `H` | `B` |
+| Player 4 (purple) | middle right | `I` `K` | `J` `L` | `N` |
+
+Seating runs left to right across the keyboard, so the clusters sit where the
+hands do: Players 1 and 2 take the two ends, 3 and 4 the middle. Each player's
+shoot key is inside their own cluster, so nobody reaches across anybody. In a
+two-player game only P1 and P2 play, which keeps the original keys.
 
 Turning is continuous, so you can aim at any angle — not just the eight the old
 grid-style movement allowed. The barrel sticking out of each dot shows where
@@ -75,6 +84,19 @@ choice is remembered between reloads.
 Settings changes apply instantly and are saved to `localStorage`, so a reload
 keeps your tuning. **Reset to defaults** puts everything back.
 
+### Profiles
+
+The picker at the top of the panel holds named sets of settings — "drifty",
+"heavy tank", "chaos" — so you can flip between feels mid-session instead of
+dragging a dozen sliders back.
+
+- **New** copies the current values into a new profile and switches to it.
+- Switching applies that profile's values immediately, rebuilding the map and
+  the player roster if those differ.
+- Edits write straight into the selected profile. There is no Save button
+  because there is nothing to forget to press.
+- **Reset to defaults** only affects the profile you're in.
+
 ## Project layout
 
 ```
@@ -83,8 +105,8 @@ css/style.css       all styling
 src/
   main.js           wires everything together
   config.js         static config: view size, base speed, player defs + key bindings
-  settings.js       live-tunable settings + persistence  <- add sliders here
-  ui.js             builds the dev panel; Develop/Play toggle
+  settings.js       live-tunable settings, profiles, persistence  <- add sliders here
+  ui.js             builds the dev panel, the profile picker, Develop/Play toggle
   input.js          keyboard state: held keys + press history for double taps
   game.js           the game state and its update step
   player.js         driving, turning, sprinting, sidestepping, shooting, stamina

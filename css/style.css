@@ -82,28 +82,38 @@ body {
   min-height: 0;
 }
 
+/*
+ * Two columns always: two players sit side by side, four fall into a 2x2.
+ * Views share whatever width is left after the dev panels, and are capped by
+ * the window height so every square fits on screen at once.
+ */
 .views {
   flex: 1;
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-items: center;
+  align-content: start;
   justify-content: center;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
 }
 
-/*
- * The views share whatever width is left over after the dev panels, and are
- * capped by the window height so both squares always fit on screen at once.
- */
 .view {
   margin: 0;
-  flex: 1 1 0;
+  width: 100%;
   min-width: 0;
   max-width: calc(100vh - 170px);
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
+/* Two rows of views need each one to be half the height. */
+body[data-rows="2"] .view {
+  max-width: calc((100vh - 210px) / 2);
+}
+
+.view[hidden] { display: none; }
 
 .view-label {
   font-size: 11px;
@@ -115,6 +125,8 @@ body {
 
 .view-p1 .view-label { color: #5ea9ff; }
 .view-p2 .view-label { color: #ff7a6b; }
+.view-p3 .view-label { color: #63d98a; }
+.view-p4 .view-label { color: #c58cff; }
 
 .view canvas {
   display: block;
@@ -234,8 +246,67 @@ body {
   font-size: 12px;
 }
 
-.keymap dt { color: var(--text-dim); }
-.keymap dd { margin: 0; }
+.keymap {
+  grid-template-columns: 1fr;
+  gap: 2px 0;
+}
+
+.keymap dt {
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.keymap dt:first-child { margin-top: 0; }
+.keymap dt span { font-weight: 400; opacity: 0.65; }
+.keymap dd { margin: 0 0 2px; }
+.keymap b { color: var(--text); font-weight: 600; }
+
+.keymap .seat-p1 { color: #5ea9ff; }
+.keymap .seat-p2 { color: #ff7a6b; }
+.keymap .seat-p3 { color: #63d98a; }
+.keymap .seat-p4 { color: #c58cff; }
+
+/* ---------- profile bar ---------- */
+
+.profile-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.profile-bar select {
+  flex: 1;
+  min-width: 0;
+  background: #14161a;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 6px;
+  font: inherit;
+}
+
+.profile-bar button {
+  flex: none;
+  appearance: none;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.profile-bar button:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.profile-bar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 
 .panel-note {
   margin: 14px 0 0;
@@ -249,7 +320,11 @@ body {
 body.mode-play .dev-only { display: none; }
 
 body.mode-play .view {
-  max-width: calc(100vh - 130px);
+  max-width: calc(100vh - 120px);
+}
+
+body.mode-play[data-rows="2"] .view {
+  max-width: calc((100vh - 150px) / 2);
 }
 
 @media (max-width: 1100px) {

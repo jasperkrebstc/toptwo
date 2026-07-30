@@ -20,13 +20,20 @@
   <main class="stage">
     <!-- Left dev column -->
     <aside class="panel dev-only" id="panel-left">
+      <h2 class="panel-title">Profile</h2>
+      <div class="profile-bar" id="profile-bar">
+        <select id="profile-select" aria-label="Settings profile"></select>
+        <button type="button" id="profile-new" title="Copy these settings into a new profile">New</button>
+        <button type="button" id="profile-delete" title="Delete this profile">Delete</button>
+      </div>
+
       <h2 class="panel-title">Settings</h2>
       <div class="settings-list" id="settings-list"></div>
       <button type="button" class="reset-button" id="reset-settings">Reset to defaults</button>
     </aside>
 
     <!-- One viewport per player -->
-    <div class="views">
+    <div class="views" id="views">
       <figure class="view view-p1">
         <figcaption class="view-label">Player 1</figcaption>
         <canvas id="view-p1" width="520" height="520"></canvas>
@@ -35,28 +42,42 @@
         <figcaption class="view-label">Player 2</figcaption>
         <canvas id="view-p2" width="520" height="520"></canvas>
       </figure>
+      <figure class="view view-p3">
+        <figcaption class="view-label">Player 3</figcaption>
+        <canvas id="view-p3" width="520" height="520"></canvas>
+      </figure>
+      <figure class="view view-p4">
+        <figcaption class="view-label">Player 4</figcaption>
+        <canvas id="view-p4" width="520" height="520"></canvas>
+      </figure>
     </div>
 
-    <!-- Right dev column (reserved for future tools) -->
+    <!-- Right dev column -->
     <aside class="panel dev-only" id="panel-right">
       <h2 class="panel-title">Controls</h2>
       <dl class="keymap">
-        <dt>P1</dt><dd>W S drive &middot; A D turn</dd>
-        <dt>P1 shoot</dt><dd>Space</dd>
-        <dt>P2</dt><dd>&uarr; &darr; drive &middot; &larr; &rarr; turn</dd>
-        <dt>P2 shoot</dt><dd>Right Shift</dd>
-        <dt>Sidestep</dt><dd>Double-tap A or D</dd>
-        <dt>Sprint</dt><dd>Double-tap and hold forward</dd>
+        <dt class="seat-p1">P1 <span>far left</span></dt>
+        <dd>W S drive &middot; A D turn &middot; <b>Q</b> shoot</dd>
+        <dt class="seat-p2">P2 <span>far right</span></dt>
+        <dd>&uarr; &darr; drive &middot; &larr; &rarr; turn &middot; <b>R Shift</b> shoot</dd>
+        <dt class="seat-p3">P3 <span>middle left</span></dt>
+        <dd>T G drive &middot; F H turn &middot; <b>B</b> shoot</dd>
+        <dt class="seat-p4">P4 <span>middle right</span></dt>
+        <dd>I K drive &middot; J L turn &middot; <b>N</b> shoot</dd>
       </dl>
       <p class="panel-note">
-        Each view keeps its own player centred and pointing up — the world
-        turns underneath. An arrow on the edge points at your opponent when
-        they are off screen.
+        Seating runs left to right across the keyboard: P1 and P2 take the two
+        ends, P3 and P4 the middle. Every player's shoot key sits inside their
+        own cluster, so nobody reaches across anyone.
       </p>
       <p class="panel-note">
-        Sidesteps and sprinting both burn stamina (the amber bar). Sprinting
-        raises your top speed but slows your turn, and boxes stop both players
-        and bullets.
+        Double-tap turn-left or turn-right to sidestep. Double-tap and hold
+        forward to sprint: faster, but a slower turn. Both burn stamina (the
+        amber bar). Boxes stop players and bullets.
+      </p>
+      <p class="panel-note">
+        Each view keeps its own player centred and pointing up — the world
+        turns underneath. Arrows on the edge point at opponents off screen.
       </p>
     </aside>
   </main>

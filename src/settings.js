@@ -8,9 +8,21 @@
  * under a heading, in the order listed here.
  */
 
-const STORAGE_KEY = 'toptwo.settings.v1';
+const STORAGE_KEY = 'toptwo.profiles.v1';
+const LEGACY_KEY = 'toptwo.settings.v1';
+const FIRST_PROFILE = 'Default';
 
 export const SETTING_DEFS = [
+  {
+    id: 'playerCount',
+    group: 'World',
+    label: 'Players',
+    hint: 'How many players and viewports. Changing it restarts the round.',
+    min: 2,
+    max: 4,
+    step: 1,
+    default: 2,
+  },
   {
     id: 'worldSize',
     group: 'World',
@@ -327,6 +339,15 @@ export const SETTING_DEFS = [
 export const settings = {};
 
 const listeners = new Set();
+const profileListeners = new Set();
+
+/**
+ * Named profiles, so a set of values can be kept and switched between —
+ * "fast and floaty" against "heavy tank", say. The active profile is written
+ * to on every change, so tuning is never lost and there is no Save button to
+ * forget.
+ */
+let store = { active: FIRST_PROFILE, profiles: {} };
 
 function clamp(def, value) {
   const n = Number(value);
@@ -338,24 +359,48 @@ function getDef(id) {
   return SETTING_DEFS.find((def) => def.id === id);
 }
 
-function load() {
-  let stored = {};
-  try {
-    stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-  } catch {
-    stored = {};
-  }
+function defaultValues() {
+  const values = {};
+  for (const def of SETTING_DEFS) values[def.id] = def.default;
+  return values;
+}
+
+/** Fill the live settings from a stored (possibly partial or stale) snapshot. */
+function applyValues(values) {
   for (const def of SETTING_DEFS) {
-    settings[def.id] = def.id in stored ? clamp(def, stored[def.id]) : def.default;
+    settings[def.id] = def.id in values ? clamp(def, values[def.id]) : def.default;
+  }
+}
+
+function readStore() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (raw && raw.profiles && Object.keys(raw.profiles).length > 0) return raw;
+  } catch { /* fall through to a fresh store */ }
+
+  // Carry over the single settings blob from before profiles existed.
+  let legacy = null;
+  try {
+    legacy = JSON.parse(localStorage.getItem(LEGACY_KEY));
+  } catch { /* ignore */ }
+
+  return {
+    active: FIRST_PROFILE,
+    profiles: { [FIRST_PROFILE]: legacy || defaultValues() },
+  };
+}
+
+function writeStore() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch {
+    /* Storage can be unavailable (private mode); tuning still works in-session. */
   }
 }
 
 function save() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    /* Storage can be unavailable (private mode); tuning still works in-session. */
-  }
+  store.profiles[store.active] = { ...settings };
+  writeStore();
 }
 
 /** Set one setting, persist it and notify listeners. Returns the clamped value. */
@@ -368,12 +413,63 @@ export function setSetting(id, value) {
   return settings[id];
 }
 
-/** Restore every setting to its default. */
+/** Restore every setting in the active profile to its default. */
 export function resetSettings() {
-  for (const def of SETTING_DEFS) settings[def.id] = def.default;
+  applyValues(defaultValues());
   save();
   emit(null);
 }
+
+/* -------------------------------------------------------------- profiles --- */
+
+export function listProfiles() {
+  return Object.keys(store.profiles);
+}
+
+export function activeProfile() {
+  return store.active;
+}
+
+/** Load a profile's values. Unknown names are ignored. */
+export function switchProfile(name) {
+  if (!(name in store.profiles)) return;
+
+  store.active = name;
+  applyValues(store.profiles[name]);
+  writeStore();
+  emit(null);
+  emitProfiles();
+}
+
+/** Copy the current values into a new profile and switch to it. */
+export function createProfile(name) {
+  const clean = name.trim();
+  if (!clean || clean in store.profiles) return false;
+
+  store.profiles[clean] = { ...settings };
+  store.active = clean;
+  writeStore();
+  emitProfiles();
+  return true;
+}
+
+/** Delete a profile. The last one is kept, since something has to be active. */
+export function deleteProfile(name) {
+  if (!(name in store.profiles)) return false;
+  if (listProfiles().length <= 1) return false;
+
+  delete store.profiles[name];
+  if (store.active === name) {
+    store.active = listProfiles()[0];
+    applyValues(store.profiles[store.active]);
+    emit(null);
+  }
+  writeStore();
+  emitProfiles();
+  return true;
+}
+
+/* -------------------------------------------------------------- listeners --- */
 
 /** Subscribe to changes. The callback receives the changed id, or null for a bulk change. */
 export function onSettingsChange(fn) {
@@ -381,8 +477,20 @@ export function onSettingsChange(fn) {
   return () => listeners.delete(fn);
 }
 
+/** Subscribe to the profile list or selection changing. */
+export function onProfilesChange(fn) {
+  profileListeners.add(fn);
+  return () => profileListeners.delete(fn);
+}
+
 function emit(id) {
   for (const fn of listeners) fn(id);
 }
 
-load();
+function emitProfiles() {
+  for (const fn of profileListeners) fn();
+}
+
+store = readStore();
+if (!(store.active in store.profiles)) store.active = listProfiles()[0];
+applyValues(store.profiles[store.active]);

@@ -1,4 +1,5 @@
-import { PLAYERS } from './config.js';
+import { MAX_PLAYERS, PLAYERS } from './config.js';
+import { settings } from './settings.js';
 import { createPlayer, refillStats, resetPlayer, updatePlayer } from './player.js';
 import { updateBullets } from './bullet.js';
 import { resolveHits } from './combat.js';
@@ -10,10 +11,21 @@ import { generateObstacles } from './obstacles.js';
  */
 export function createGame() {
   return {
-    players: PLAYERS.map(createPlayer),
+    players: activePlayerDefs().map(createPlayer),
     bullets: [],
     obstacles: generateObstacles(),
   };
+}
+
+function activePlayerDefs() {
+  const count = Math.min(MAX_PLAYERS, Math.max(2, Math.round(settings.playerCount)));
+  return PLAYERS.slice(0, count);
+}
+
+/** Rebuild the roster after the player count changes. */
+export function rebuildPlayers(game) {
+  game.players = activePlayerDefs().map(createPlayer);
+  game.bullets.length = 0;
 }
 
 /** Advance the world by a fixed `dt` in seconds. */
