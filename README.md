@@ -53,6 +53,12 @@ at a fraction of it, so running wide costs you the lap rather than ending it.
 Cars leave rubber where they slide — the harder you're sideways, the darker the
 mark.
 
+A **minimap** in the corner of each view shows the same world much further
+out, turning with the driver so up is always where they are heading — on a
+viewport this small you otherwise meet a corner at the moment you should
+already be turning into it. Rivals appear on it as dots. Its size and range
+are sliders; size 0 hides it.
+
 **Laps are counted as a full turn of the angle around the track's centre**,
 accumulated frame by frame, rather than as a line crossing. Cheating is
 impossible by construction: reversing back over the start line unwinds exactly

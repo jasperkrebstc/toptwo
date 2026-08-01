@@ -80,9 +80,95 @@ export function createViewRenderer(canvas, viewerId) {
       }
     }
 
-    if (racing) drawRaceHud(ctx, game, viewer);
-    else if (!viewer.alive) drawRespawning(ctx, viewer);
+    if (racing) {
+      drawMinimap(ctx, game, viewer);
+      drawRaceHud(ctx, game, viewer);
+    } else if (!viewer.alive) {
+      drawRespawning(ctx, viewer);
+    }
   };
+}
+
+/**
+ * Corner minimap: the same world, much further out, turning with the driver so
+ * up is always where they are heading. On a viewport this small you otherwise
+ * meet a corner at the moment you have to be already turning into it.
+ */
+function drawMinimap(ctx, game, viewer) {
+  const size = settings.minimapSize;
+  if (size < 20) return;
+
+  const radius = size / 2;
+  const cx = VIEW_SIZE - radius - 14;
+  const cy = radius + 14;
+  const scale = size / settings.minimapRange;
+
+  ctx.save();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(10, 16, 12, 0.78)';
+  ctx.fill();
+  ctx.clip();
+
+  // Same camera as the main view, just pulled much further back.
+  ctx.translate(cx, cy);
+  ctx.rotate(-viewer.heading - Math.PI / 2);
+  ctx.scale(scale, scale);
+  ctx.translate(-viewer.x, -viewer.y);
+
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  ctx.lineWidth = settings.trackWidth + 14 / scale;
+  ctx.strokeStyle = 'rgba(216, 72, 60, 0.75)';
+  ctx.stroke(game.track.outline);
+
+  ctx.lineWidth = settings.trackWidth;
+  ctx.strokeStyle = '#4a4f56';
+  ctx.stroke(game.track.outline);
+
+  drawMinimapStartLine(ctx, game.track, scale);
+
+  for (const player of game.players) {
+    if (player === viewer) continue;
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 5 / scale, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+
+  // The driver sits at the centre, always pointing up.
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle = viewer.color;
+  ctx.beginPath();
+  ctx.moveTo(0, -7);
+  ctx.lineTo(5, 5);
+  ctx.lineTo(-5, 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+  ctx.stroke();
+}
+
+function drawMinimapStartLine(ctx, track, scale) {
+  const start = track.samples[0];
+  const half = settings.trackWidth / 2;
+
+  ctx.save();
+  ctx.translate(start.x, start.y);
+  ctx.rotate(Math.atan2(start.tx, -start.ty));
+  ctx.fillStyle = '#f2f2f4';
+  ctx.fillRect(-half, -3 / scale, half * 2, 6 / scale);
+  ctx.restore();
 }
 
 /* ----------------------------------------------------------------- racing --- */
