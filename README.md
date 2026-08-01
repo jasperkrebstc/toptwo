@@ -1,11 +1,18 @@
 # Top Two
 
-A simple local-multiplayer top-down 2D arcade shooter. Two to four players on
-one keyboard, one square world — shown as split-screen, a viewport per player.
+A simple local-multiplayer top-down 2D game for two to four players on one
+keyboard, in split-screen — a viewport per player.
 
-Players handle like small tanks: you drive forward and back along the way you
-are pointing, and steer to aim. Each player's own view keeps them centred and
-pointing up the screen, with the world rotating underneath.
+Two modes, switched in the top bar:
+
+- **Racing** — a procedurally generated circuit, a standing start, laps and
+  fastest-lap times.
+- **Shooting** — a deathmatch with cover, health, shields, sprinting and
+  sidesteps.
+
+Both share the same driving model. Cars handle with weight: they build speed,
+carry momentum, and slide when you turn hard. Each player's own view keeps them
+centred and pointing up the screen, with the world rotating underneath.
 
 ## Running it
 
@@ -35,6 +42,26 @@ Seating runs left to right across the keyboard, so the clusters sit where the
 hands do: Players 1 and 2 take the two ends, 3 and 4 the middle. Each player's
 shoot key is inside their own cluster, so nobody reaches across anybody. In a
 two-player game only P1 and P2 play, which keeps the original keys.
+
+## Racing
+
+Press **Start race** (or `Enter`) and the countdown runs: 3, 2, 1, GO. Controls
+are dead until GO, so nobody can jump the start.
+
+The circuit is generated from a seed. Tarmac is fast; the grass caps your speed
+at a fraction of it, so running wide costs you the lap rather than ending it.
+Cars leave rubber where they slide — the harder you're sideways, the darker the
+mark.
+
+**Laps are counted as a full turn of the angle around the track's centre**,
+accumulated frame by frame, rather than as a line crossing. Cheating is
+impossible by construction: reversing back over the start line unwinds exactly
+as much progress as it gained, and cutting across the infield never adds up to
+a full turn. The first car to complete the set number of laps wins; each
+player's best lap and the overall fastest lap are shown in their view.
+
+Racing has no shooting, sprinting or sidesteps, and their settings disappear
+from the dev panel.
 
 Turning is continuous, so you can aim at any angle — not just the eight the old
 grid-style movement allowed. The barrel sticking out of each dot shows where
@@ -113,6 +140,9 @@ src/
   bullet.js         bullet spawning and flight
   combat.js         hit detection, damage, shield recovery, death
   obstacles.js      seeded map generation + collision against boxes
+  track.js          seeded racetrack generation and on-track queries
+  race.js           grid, countdown, lap counting, timing
+  mode.js           which game is being played
   rng.js            seeded random numbers
   render.js         one rotating camera per player: grid, entities, HUD
   loop.js           fixed-timestep game loop
@@ -129,6 +159,32 @@ Append one entry to `SETTING_DEFS` in `src/settings.js`:
 A labelled slider + number box appears in the panel, the value persists, and
 reset works — no UI code needed. Read it anywhere with `settings.bulletSize`.
 Entries sharing a `group` are listed together under a heading.
+
+### How the track is generated
+
+Radial noise gives you a blob and a spline through random points gives uniform
+wiggle. Neither looks like a circuit. Real ones are **straights joined by
+corners of different radius**, so `track.js` builds exactly that:
+
+1. **Corner vertices around a circle, in polar order.** Strictly increasing
+   angles keep the underlying polygon simple.
+2. **Each vertex is rounded with a tangent circular arc.** What survives of
+   each polygon edge is a straight; the arc is the corner. Sharpness varies
+   corner to corner, so a lap mixes hairpins with sweepers instead of repeating
+   one corner all the way round.
+3. **Notches are relaxed.** A vertex dipping far below its neighbours makes a
+   reflex corner whose fillet folds back over the track. Pulling those out
+   costs far less character than damping every jitter on the circuit.
+4. **The result is verified.** The finished centreline is checked for
+   self-crossings and for fitting inside the world, and the jitter is damped
+   until it passes. Fully damped is a plain oval, which cannot fail, so
+   generation always terminates with a drivable circuit — and the same seed
+   always gives the same track.
+
+`Corner sharpness` then means something real: at 0 the arcs swallow the edges
+and the circuit approaches a circle; at 1 they are tight corners joined by long
+straights. The start line is placed on the longest straight, as on a real
+circuit.
 
 ### The movement model
 
@@ -196,5 +252,8 @@ impulses or per-region changes to `braking`/`grip`, not new systems.
   their own radius before collisions are resolved. A long, fast sidestep would
   otherwise jump clean through a box between two frames.
 - **The map is a pure function of the seed.** Same seed, same map, every
-  reload — no state to save, and both players are guaranteed to see the same
-  world.
+  reload — no state to save, and every player is guaranteed to see the same
+  world. The same is true of the racetrack.
+- **Modes share everything they can.** Both run the same players, physics,
+  cameras and dev panel; the mode picks which mechanics run and which settings
+  exist (`modes: ['race']` on a setting definition hides it elsewhere).

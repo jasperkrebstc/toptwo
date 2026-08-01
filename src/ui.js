@@ -10,11 +10,45 @@ const MODE_STORAGE_KEY = 'toptwo.mode.v1';
  * Builds the dev panel from SETTING_DEFS. Each setting gets a slider and a
  * number box that stay in sync with each other and with the live value.
  */
-export function initSettingsUI(listEl, resetButtonEl) {
-  const controls = new Map();
+export function initSettingsUI(listEl, resetButtonEl, getMode) {
+  let controls = new Map();
+
+  function build() {
+    controls = new Map();
+    listEl.replaceChildren();
+    buildControls(listEl, controls, getMode());
+    syncFromSettings(controls);
+  }
+
+  resetButtonEl.addEventListener('click', () => {
+    resetSettings();
+    resetButtonEl.blur();
+  });
+
+  onSettingsChange((id) => {
+    // A bulk change (reset, or a profile switch) needs every control
+    // refreshed; a single change was already reflected by the control the
+    // user is holding.
+    if (id === null) syncFromSettings(controls);
+  });
+
+  build();
+  return build;   // called again when the game mode changes
+}
+
+function syncFromSettings(controls) {
+  for (const { def, range, number } of controls.values()) {
+    range.value = settings[def.id];
+    number.value = format(settings[def.id], def.step);
+  }
+}
+
+function buildControls(listEl, controls, mode) {
   let currentGroup = null;
 
   for (const def of SETTING_DEFS) {
+    if (def.modes && !def.modes.includes(mode)) continue;
+
     if (def.group && def.group !== currentGroup) {
       currentGroup = def.group;
       const heading = document.createElement('h3');
@@ -87,26 +121,6 @@ export function initSettingsUI(listEl, resetButtonEl) {
     controls.set(def.id, { def, range, number });
     listEl.append(row);
   }
-
-  function syncFromSettings() {
-    for (const { def, range, number } of controls.values()) {
-      range.value = settings[def.id];
-      number.value = format(settings[def.id], def.step);
-    }
-  }
-
-  resetButtonEl.addEventListener('click', () => {
-    resetSettings();
-    resetButtonEl.blur();
-  });
-
-  onSettingsChange((id) => {
-    // A bulk change (reset) needs every control refreshed; a single change
-    // was already reflected by the control the user is holding.
-    if (id === null) syncFromSettings();
-  });
-
-  syncFromSettings();
 }
 
 /**
@@ -165,6 +179,29 @@ function suggestName() {
     const candidate = `Profile ${n}`;
     if (!taken.has(candidate)) return candidate;
   }
+}
+
+/** Racing / Shooting toggle. Everything else keys off the stored mode. */
+export function initGameModeUI(switchEl, getMode, setMode) {
+  const buttons = [...switchEl.querySelectorAll('.mode-button')];
+
+  function apply() {
+    const mode = getMode();
+    document.body.dataset.game = mode;
+    for (const button of buttons) {
+      button.classList.toggle('is-active', button.dataset.game === mode);
+    }
+  }
+
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      setMode(button.dataset.game);
+      button.blur();
+    });
+  }
+
+  apply();
+  return apply;
 }
 
 /** Develop / Play toggle. Play mode just hides everything marked .dev-only. */

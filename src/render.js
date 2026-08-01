@@ -1,5 +1,6 @@
 import { PLAYER_RADIUS, VIEW_SIZE } from './config.js';
 import { settings } from './settings.js';
+import { formatTime, isGoingBackwards } from './race.js';
 
 const HALF_VIEW = VIEW_SIZE / 2;
 /** Anything within this radius of the player can be on screen once rotated. */
@@ -11,6 +12,12 @@ const SHIELD_COLOR = '#9fe8ff';
 const STAMINA_COLOR = '#ffd166';
 const OBSTACLE_FILL = '#2b3038';
 const OBSTACLE_EDGE = '#3d444f';
+
+const GRASS = '#16301f';
+const GRASS_STRIPE = '#193621';
+const TARMAC = '#3c4045';
+const KERB_WIDTH = 9;
+const HUD_FONT = 'ui-sans-serif, system-ui, sans-serif';
 const GRID_COLOR = 'rgba(255, 255, 255, 0.07)';
 const GRID_COLOR_MAJOR = 'rgba(255, 255, 255, 0.15)';
 const WORLD_FILL = '#0e1013';
@@ -40,27 +47,263 @@ export function createViewRenderer(canvas, viewerId) {
     ctx.rotate(-viewer.heading - Math.PI / 2);
     ctx.translate(-viewer.x, -viewer.y);
 
-    drawWorld(ctx, viewer);
-    drawGrid(ctx, viewer);
-    drawObstacles(ctx, viewer, game.obstacles);
-    for (const bullet of game.bullets) drawBullet(ctx, bullet);
-    for (const player of game.players) {
-      if (player.alive) drawPlayer(ctx, player);
+    const racing = game.mode === 'race';
+
+    if (racing) {
+      drawGrass(ctx, viewer);
+      drawTrack(ctx, game.track);
+      for (const player of game.players) drawTrail(ctx, viewer, player);
+      for (const player of game.players) drawCar(ctx, player);
+    } else {
+      drawWorld(ctx, viewer);
+      drawGrid(ctx, viewer);
+      drawObstacles(ctx, viewer, game.obstacles);
+      for (const bullet of game.bullets) drawBullet(ctx, bullet);
+      for (const player of game.players) {
+        if (player.alive) drawPlayer(ctx, player);
+      }
     }
 
     ctx.restore();
 
-    // Bars and off-screen markers are drawn unrotated, so they stay readable
-    // whichever way the viewer is facing.
+    // Everything below is drawn unrotated, so it stays readable whichever way
+    // the viewer is facing.
     for (const player of game.players) {
-      if (!player.alive) continue;
+      if (!racing && !player.alive) continue;
       const at = worldToView(viewer, player.x, player.y);
-      if (isOnScreen(at)) drawBars(ctx, player, at);
-      else if (player !== viewer) drawOffScreenMarker(ctx, player, at);
+
+      if (isOnScreen(at)) {
+        if (racing) drawNameTag(ctx, player, at, player === viewer);
+        else drawBars(ctx, player, at);
+      } else if (player !== viewer) {
+        drawOffScreenMarker(ctx, player, at);
+      }
     }
 
-    if (!viewer.alive) drawRespawning(ctx, viewer);
+    if (racing) drawRaceHud(ctx, game, viewer);
+    else if (!viewer.alive) drawRespawning(ctx, viewer);
   };
+}
+
+/* ----------------------------------------------------------------- racing --- */
+
+function drawGrass(ctx, viewer) {
+  const size = settings.worldSize;
+  ctx.fillStyle = GRASS;
+  ctx.fillRect(-size, -size, size * 3, size * 3);
+
+  // Mown stripes, purely so the grass reads as ground moving past you.
+  ctx.fillStyle = GRASS_STRIPE;
+  const band = 90;
+  const from = Math.floor((viewer.y - VIEW_RADIUS) / (band * 2)) * band * 2;
+  for (let y = from; y < viewer.y + VIEW_RADIUS; y += band * 2) {
+    ctx.fillRect(viewer.x - VIEW_RADIUS, y, VIEW_RADIUS * 2, band);
+  }
+}
+
+/**
+ * The road is one stroked path at several widths: kerbs underneath, tarmac on
+ * top, centre line last. Much simpler than building an outline polygon, and it
+ * gets the rounded corner joins for free.
+ */
+function drawTrack(ctx, track) {
+  const width = settings.trackWidth;
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Kerb: a white band, then red dashes over it, then the tarmac covers the
+  // middle — leaving red-and-white edges on both sides.
+  ctx.lineWidth = width + KERB_WIDTH * 2;
+  ctx.strokeStyle = '#e8e8ea';
+  ctx.setLineDash([]);
+  ctx.stroke(track.outline);
+
+  // Butt caps, not round: a round cap on a stroke this wide reaches half the
+  // line width past each dash, which would close every gap and leave the kerb
+  // a solid red band.
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = '#d8483c';
+  ctx.setLineDash([34, 34]);
+  ctx.stroke(track.outline);
+  ctx.setLineDash([]);
+
+  ctx.lineCap = 'round';
+  ctx.lineWidth = width;
+  ctx.strokeStyle = TARMAC;
+  ctx.stroke(track.outline);
+
+  ctx.lineCap = 'butt';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.setLineDash([34, 46]);
+  ctx.stroke(track.outline);
+  ctx.setLineDash([]);
+  ctx.lineCap = 'round';
+
+  drawStartLine(ctx, track);
+}
+
+function drawStartLine(ctx, track) {
+  const start = track.samples[0];
+  const half = settings.trackWidth / 2;
+  const nx = -start.ty;
+  const ny = start.tx;
+
+  ctx.save();
+  ctx.translate(start.x, start.y);
+  ctx.rotate(Math.atan2(ny, nx));
+
+  // Two rows of chequer across the road.
+  const squares = 14;
+  const step = (half * 2) / squares;
+  for (let i = 0; i < squares; i++) {
+    for (let row = 0; row < 2; row++) {
+      ctx.fillStyle = (i + row) % 2 === 0 ? '#f2f2f4' : '#20232a';
+      ctx.fillRect(-half + i * step, -step + row * step, step, step);
+    }
+  }
+  ctx.restore();
+}
+
+/**
+ * Tyre marks. Segments are bucketed by opacity so each bucket is a single
+ * path — four players' worth of individually stroked segments across four
+ * viewports would cost far more than it is worth.
+ */
+function drawTrail(ctx, viewer, player) {
+  if (player.trail.length < 2) return;
+
+  const buckets = [[], [], [], []];
+
+  for (let i = 1; i < player.trail.length; i++) {
+    const a = player.trail[i - 1];
+    const b = player.trail[i];
+
+    if (Math.abs(b.x - viewer.x) > VIEW_RADIUS + 40) continue;
+    if (Math.abs(b.y - viewer.y) > VIEW_RADIUS + 40) continue;
+
+    const fade = 1 - b.age / 3.2;
+    const strength = fade * (0.25 + b.slip * 0.75);
+    const bucket = Math.min(3, Math.max(0, Math.floor(strength * 4)));
+    buckets[bucket].push([a, b]);
+  }
+
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#0b0c0e';
+
+  buckets.forEach((segments, index) => {
+    if (segments.length === 0) return;
+
+    ctx.globalAlpha = 0.12 + index * 0.14;
+    ctx.lineWidth = 3 + index * 0.6;
+    ctx.beginPath();
+    for (const [a, b] of segments) {
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+    }
+    ctx.stroke();
+  });
+
+  ctx.globalAlpha = 1;
+}
+
+/** A very simple open-wheel car, pointing along +x before rotation. */
+function drawCar(ctx, player) {
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.rotate(player.heading);
+
+  ctx.fillStyle = '#141619';
+  ctx.fillRect(-16, -8, 5, 16);      // rear wing
+  ctx.fillRect(11, -9, 4, 18);       // front wing
+  ctx.fillRect(-11, -10, 8, 4);      // wheels
+  ctx.fillRect(-11, 6, 8, 4);
+  ctx.fillRect(4, -10, 7, 4);
+  ctx.fillRect(4, 6, 7, 4);
+
+  ctx.fillStyle = player.color;
+  ctx.beginPath();
+  ctx.moveTo(15, 0);
+  ctx.lineTo(6, -4.5);
+  ctx.lineTo(-12, -5.5);
+  ctx.lineTo(-12, 5.5);
+  ctx.lineTo(6, 4.5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.beginPath();
+  ctx.ellipse(-3, 0, 3.4, 2.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawNameTag(ctx, player, at, isViewer) {
+  if (isViewer) return;
+
+  ctx.fillStyle = player.color;
+  ctx.font = `600 11px ${HUD_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.fillText(player.def.label.replace('Player ', 'P'), at.x, at.y - 20);
+  ctx.textAlign = 'start';
+}
+
+function drawRaceHud(ctx, game, viewer) {
+  const race = game.race;
+  const laps = Math.round(settings.lapsToWin);
+
+  ctx.font = `600 13px ${HUD_FONT}`;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.fillText(`LAP ${Math.min(viewer.lap + 1, laps)}/${laps}`, 12, 22);
+
+  ctx.font = `500 12px ${HUD_FONT}`;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  const current = race.phase === 'running' && !viewer.finished
+    ? race.time - viewer.lapStartedAt
+    : 0;
+  ctx.fillText(formatTime(current), 12, 40);
+  ctx.fillText(`BEST ${formatTime(viewer.bestLapTime)}`, 12, 56);
+
+  if (race.bestLapBy) {
+    const holder = game.players.find((p) => p.id === race.bestLapBy);
+    ctx.fillStyle = holder ? holder.color : '#fff';
+    ctx.fillText(`FASTEST ${formatTime(race.bestLap)}`, 12, 74);
+  }
+
+  if (race.phase === 'running' && !viewer.finished && game.track
+      && isGoingBackwards(viewer, game.track)) {
+    banner(ctx, 'WRONG WAY', '#ffb020', 20, HALF_VIEW * 0.55);
+  }
+
+  if (race.phase === 'ready') {
+    banner(ctx, 'PRESS START', 'rgba(255,255,255,0.75)', 22, HALF_VIEW);
+  } else if (race.phase === 'countdown') {
+    banner(ctx, String(Math.ceil(race.countdown)), '#ffffff', 78, HALF_VIEW);
+  } else if (race.goFlash > 0) {
+    banner(ctx, 'GO', '#63d98a', 78, HALF_VIEW);
+  } else if (race.phase === 'finished') {
+    const winner = game.players.find((p) => p.id === race.winner);
+    const won = race.winner === viewer.id;
+    banner(ctx, won ? 'YOU WIN' : `${winner ? winner.def.label : 'Nobody'} WINS`,
+           winner ? winner.color : '#fff', 30, HALF_VIEW);
+  }
+}
+
+function banner(ctx, text, color, size, y) {
+  ctx.font = `700 ${size}px ${HUD_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.strokeText(text, HALF_VIEW, y);
+  ctx.fillStyle = color;
+  ctx.fillText(text, HALF_VIEW, y);
+
+  ctx.textAlign = 'start';
+  ctx.textBaseline = 'alphabetic';
 }
 
 /** The playable square, with everything outside it visibly dead space. */

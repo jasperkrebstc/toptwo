@@ -11,9 +11,19 @@
 
   <header class="topbar">
     <h1 class="title">Top Two</h1>
-    <div class="mode-switch" id="mode-switch">
-      <button type="button" class="mode-button" data-mode="develop">Develop</button>
-      <button type="button" class="mode-button" data-mode="play">Play</button>
+
+    <div class="topbar-right">
+      <button type="button" class="start-button" id="start-race">Start race</button>
+
+      <div class="mode-switch" id="game-switch">
+        <button type="button" class="mode-button" data-game="race">Racing</button>
+        <button type="button" class="mode-button" data-game="shoot">Shooting</button>
+      </div>
+
+      <div class="mode-switch" id="mode-switch">
+        <button type="button" class="mode-button" data-mode="develop">Develop</button>
+        <button type="button" class="mode-button" data-mode="play">Play</button>
+      </div>
     </div>
   </header>
 
@@ -57,23 +67,29 @@
       <h2 class="panel-title">Controls</h2>
       <dl class="keymap">
         <dt class="seat-p1">P1 <span>far left</span></dt>
-        <dd>W S drive &middot; A D turn &middot; <b>Q</b> shoot</dd>
+        <dd>W S drive &middot; A D turn <span class="shoot-only">&middot; <b>Q</b> shoot</span></dd>
         <dt class="seat-p2">P2 <span>far right</span></dt>
-        <dd>&uarr; &darr; drive &middot; &larr; &rarr; turn &middot; <b>R Shift</b> shoot</dd>
+        <dd>&uarr; &darr; drive &middot; &larr; &rarr; turn <span class="shoot-only">&middot; <b>R Shift</b> shoot</span></dd>
         <dt class="seat-p3">P3 <span>middle left</span></dt>
-        <dd>T G drive &middot; F H turn &middot; <b>B</b> shoot</dd>
+        <dd>T G drive &middot; F H turn <span class="shoot-only">&middot; <b>B</b> shoot</span></dd>
         <dt class="seat-p4">P4 <span>middle right</span></dt>
-        <dd>I K drive &middot; J L turn &middot; <b>N</b> shoot</dd>
+        <dd>I K drive &middot; J L turn <span class="shoot-only">&middot; <b>N</b> shoot</span></dd>
       </dl>
       <p class="panel-note">
         Seating runs left to right across the keyboard: P1 and P2 take the two
         ends, P3 and P4 the middle. Every player's shoot key sits inside their
         own cluster, so nobody reaches across anyone.
       </p>
-      <p class="panel-note">
+      <p class="panel-note shoot-only">
         Double-tap turn-left or turn-right to sidestep. Double-tap and hold
         forward to sprint: faster, but a slower turn. Both burn stamina (the
         amber bar). Boxes stop players and bullets.
+      </p>
+      <p class="panel-note race-only">
+        Racing uses driving only — no shooting, sprinting or sidesteps. Press
+        <b>Start race</b> (or <b>Enter</b>) for the countdown. Keep it on the
+        tarmac: the grass caps your speed. Laps only count by going all the way
+        round, so cutting back over the line gains nothing.
       </p>
       <p class="panel-note">
         Each view keeps its own player centred and pointing up — the world

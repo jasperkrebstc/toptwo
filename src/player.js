@@ -4,6 +4,7 @@ import { settings } from './settings.js';
 import { spawnBullet } from './bullet.js';
 import { regenShield } from './combat.js';
 import { resolveObstacleCollisions } from './obstacles.js';
+import { nearestIndex } from './track.js';
 
 /** Double-tapping these sidesteps; they never dash forward or back. */
 const SIDESTEP_ACTIONS = ['turnLeft', 'turnRight'];
@@ -50,6 +51,20 @@ export function createPlayer(def) {
     alive: true,
     deadTimeLeft: 0,
     deaths: 0,
+    // Racing state. Laps are counted as a full turn of the angle around the
+    // track centre, so `lapProgress` is in radians.
+    lap: 0,
+    lapProgress: 0,
+    lastAngle: 0,
+    lapStartedAt: 0,
+    lastLapTime: null,
+    bestLapTime: null,
+    finished: false,
+    finishTime: null,
+    trackIndex: 0,
+    onTrack: true,
+    // Rubber laid down behind the car, oldest first.
+    trail: [],
     // Press count per action we've already reacted to, for double-tap detection.
     seenPresses: emptyPressCounts(),
   };
@@ -98,22 +113,37 @@ export function speedOf(player) {
 
 /** Advance one player by `dt` seconds. */
 export function updatePlayer(player, dt, game) {
-  if (!player.alive) {
+  const racing = game.mode === 'race';
+
+  if (!racing && !player.alive) {
     player.deadTimeLeft -= dt;
     if (player.deadTimeLeft <= 0) resetPlayer(player);
     return;
   }
 
-  regenShield(player, dt);
-  regenStamina(player, dt);
+  if (racing) {
+    // Where the car sits relative to the tarmac decides its top speed.
+    player.trackIndex = nearestIndex(game.track.samples, player.x, player.y);
+    const sample = game.track.samples[player.trackIndex];
+    player.onTrack = Math.hypot(sample.x - player.x, sample.y - player.y)
+      <= settings.trackWidth / 2;
+  } else {
+    regenShield(player, dt);
+    regenStamina(player, dt);
+    player.onTrack = true;
+  }
+
   player.fireCooldownLeft = Math.max(0, player.fireCooldownLeft - dt);
   player.dashCooldownLeft = Math.max(0, player.dashCooldownLeft - dt);
 
-  readTaps(player, dt);
-  turn(player, dt);
-  drive(player, dt);
+  // Racing has no sprint, sidestep or shooting — just the driving.
+  if (!racing) readTaps(player, dt);
+
+  turn(player, dt, game);
+  drive(player, dt, game);
   integrate(player, dt, game);
-  handleShooting(player, game);
+
+  if (!racing) handleShooting(player, game);
 }
 
 /* ---------------------------------------------------------------- input --- */
@@ -171,12 +201,14 @@ function startSidestep(player, action) {
 /* -------------------------------------------------------------- physics --- */
 
 /** Angular velocity ramps toward the requested rate instead of snapping. */
-function turn(player, dt) {
+function turn(player, dt, game) {
   const keys = player.def.keys;
 
   let input = 0;
-  if (isDown(keys.turnLeft)) input -= 1;
-  if (isDown(keys.turnRight)) input += 1;
+  if (!game.inputLocked) {
+    if (isDown(keys.turnLeft)) input -= 1;
+    if (isDown(keys.turnRight)) input += 1;
+  }
   player.turning = input;
 
   const factor = player.sprinting ? settings.sprintTurnFactor : 1;
@@ -196,12 +228,14 @@ function turn(player, dt) {
  * Split the velocity into "along the heading" and "sideways", push on the
  * first and let grip eat the second, then put it back together.
  */
-function drive(player, dt) {
+function drive(player, dt, game) {
   const keys = player.def.keys;
 
   let input = 0;
-  if (isDown(keys.forward)) input += 1;
-  if (isDown(keys.back)) input -= 1;
+  if (!game.inputLocked) {
+    if (isDown(keys.forward)) input += 1;
+    if (isDown(keys.back)) input -= 1;
+  }
   player.moving = input;
 
   const cos = Math.cos(player.heading);
@@ -210,7 +244,10 @@ function drive(player, dt) {
   let lateral = -player.vx * sin + player.vy * cos;
 
   const boost = player.sprinting ? settings.sprintSpeedFactor : 1;
-  const topSpeed = BASE_SPEED * settings.speedMultiplier * boost;
+  // Off the tarmac the engine simply cannot pull as hard, so running wide
+  // costs you the lap rather than ending it.
+  const surface = player.onTrack ? 1 : settings.offTrackSpeed;
+  const topSpeed = BASE_SPEED * settings.speedMultiplier * boost * surface;
   const cap = input < 0 ? topSpeed * REVERSE_FACTOR : topSpeed;
 
   const wasAt = forward;
@@ -264,6 +301,37 @@ function integrate(player, dt, game) {
       player.dashVY = 0;
     }
   }
+}
+
+/* --------------------------------------------------------------- trails --- */
+
+const TRAIL_LIFE = 3.2;
+const TRAIL_STEP = 9;
+const TRAIL_MAX = 90;
+
+/**
+ * Rubber laid on the road. Each point records how hard the car was sliding at
+ * the time, so hard cornering leaves a dark mark and cruising leaves almost
+ * nothing.
+ */
+export function updateTrail(player, dt) {
+  for (let i = player.trail.length - 1; i >= 0; i--) {
+    player.trail[i].age += dt;
+    if (player.trail[i].age > TRAIL_LIFE) player.trail.splice(i, 1);
+  }
+
+  const last = player.trail[player.trail.length - 1];
+  if (last && Math.hypot(player.x - last.x, player.y - last.y) < TRAIL_STEP) return;
+
+  const speed = Math.hypot(player.vx, player.vy);
+  if (speed < 25) return;
+
+  const lateral = Math.abs(-player.vx * Math.sin(player.heading)
+                         + player.vy * Math.cos(player.heading));
+  const slip = Math.min(1, lateral / 140);
+
+  player.trail.push({ x: player.x, y: player.y, age: 0, slip });
+  if (player.trail.length > TRAIL_MAX) player.trail.shift();
 }
 
 /* ------------------------------------------------------------- stamina --- */

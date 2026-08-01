@@ -45,6 +45,30 @@ body {
   color: var(--text-dim);
 }
 
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.start-button {
+  appearance: none;
+  border: 1px solid #3f7d4f;
+  background: #234c30;
+  color: #d9f5e2;
+  font: inherit;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.start-button:hover { background: #2b5c3a; }
+
+body[data-game="shoot"] .start-button { display: none; }
+body[data-game="shoot"] .race-only { display: none; }
+body[data-game="race"] .shoot-only { display: none; }
+
 .mode-switch {
   display: flex;
   border: 1px solid var(--border);

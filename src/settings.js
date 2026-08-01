@@ -12,10 +12,15 @@ const STORAGE_KEY = 'toptwo.profiles.v1';
 const LEGACY_KEY = 'toptwo.settings.v1';
 const FIRST_PROFILE = 'Default';
 
+/**
+ * `modes` limits a setting to one game mode; leaving it off means it applies to
+ * both. The dev panel only shows the settings that do something in the mode
+ * you're currently in.
+ */
 export const SETTING_DEFS = [
   {
     id: 'playerCount',
-    group: 'World',
+    group: 'Match',
     label: 'Players',
     hint: 'How many players and viewports. Changing it restarts the round.',
     min: 2,
@@ -25,7 +30,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'worldSize',
-    group: 'World',
+    group: 'Match',
     label: 'World size',
     hint: 'Side of the square world, in world units.',
     min: 500,
@@ -34,8 +39,97 @@ export const SETTING_DEFS = [
     default: 2200,
   },
   {
+    id: 'lapsToWin',
+    group: 'Race',
+    modes: ['race'],
+    label: 'Laps to win',
+    hint: 'First car to finish this many laps wins.',
+    min: 1,
+    max: 20,
+    step: 1,
+    default: 3,
+  },
+  {
+    id: 'countdownSeconds',
+    group: 'Race',
+    modes: ['race'],
+    label: 'Countdown (s)',
+    hint: 'Lights-out delay after pressing Start.',
+    min: 1,
+    max: 10,
+    step: 1,
+    default: 3,
+  },
+  {
+    id: 'trackSeed',
+    group: 'Track',
+    modes: ['race'],
+    label: 'Track seed',
+    hint: 'Change it for a completely different circuit.',
+    min: 1,
+    max: 9999,
+    step: 1,
+    default: 7,
+  },
+  {
+    id: 'trackCorners',
+    group: 'Track',
+    modes: ['race'],
+    label: 'Corners',
+    hint: 'How many corners the circuit is built from.',
+    min: 3,
+    max: 16,
+    step: 1,
+    default: 8,
+  },
+  {
+    id: 'trackCurviness',
+    group: 'Track',
+    modes: ['race'],
+    label: 'Curviness',
+    hint: 'How far corners wander from a perfect circle. 0 is a plain oval.',
+    min: 0,
+    max: 1,
+    step: 0.05,
+    default: 0.55,
+  },
+  {
+    id: 'cornerSharpness',
+    group: 'Track',
+    modes: ['race'],
+    label: 'Corner sharpness',
+    hint: 'Low is sweeping and round; high gives tight corners joined by long straights.',
+    min: 0,
+    max: 1,
+    step: 0.05,
+    default: 0.55,
+  },
+  {
+    id: 'trackWidth',
+    group: 'Track',
+    modes: ['race'],
+    label: 'Track width',
+    hint: 'Width of the tarmac, in world units.',
+    min: 60,
+    max: 600,
+    step: 10,
+    default: 240,
+  },
+  {
+    id: 'offTrackSpeed',
+    group: 'Track',
+    modes: ['race'],
+    label: 'Off-track speed',
+    hint: 'Top speed multiplier on the grass. Low values punish running wide.',
+    min: 0.05,
+    max: 1,
+    step: 0.05,
+    default: 0.35,
+  },
+  {
     id: 'gridSize',
     group: 'World',
+    modes: ['shoot'],
     label: 'Grid size',
     hint: 'Spacing of the background grid. Your only sense of speed.',
     min: 20,
@@ -45,6 +139,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'worldSeed',
+    modes: ['shoot'],
     group: 'World',
     label: 'Map seed',
     hint: 'Change it for a completely different map.',
@@ -55,6 +150,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'obstacleClusters',
+    modes: ['shoot'],
     group: 'World',
     label: 'Cover clusters',
     hint: 'How many clumps of boxes to scatter. 0 for an open field.',
@@ -65,6 +161,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'clusterSize',
+    modes: ['shoot'],
     group: 'World',
     label: 'Cluster size',
     hint: 'Boxes per clump. Bigger makes longer walls.',
@@ -135,6 +232,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'sprintSpeedFactor',
+    modes: ['shoot'],
     group: 'Movement',
     label: 'Sprint speed x',
     hint: 'Top speed multiplier while sprinting.',
@@ -145,6 +243,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'sprintTurnFactor',
+    modes: ['shoot'],
     group: 'Movement',
     label: 'Sprint turn x',
     hint: 'Turn rate multiplier while sprinting. Below 1 makes sprinting commit you to a line.',
@@ -155,6 +254,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'bulletSpeed',
+    modes: ['shoot'],
     group: 'Shooting',
     label: 'Bullet speed',
     hint: 'World units per second. Applies to bullets already in the air too.',
@@ -165,6 +265,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'fireCooldown',
+    modes: ['shoot'],
     group: 'Shooting',
     label: 'Fire cooldown (s)',
     hint: 'Time between shots while the shoot key is held.',
@@ -175,6 +276,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'recoilKick',
+    modes: ['shoot'],
     group: 'Shooting',
     label: 'Recoil kick',
     hint: 'Backward shove per shot. It feeds the same momentum as driving, so braking and grip decide how far you slide.',
@@ -185,6 +287,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'damagePerBullet',
+    modes: ['shoot'],
     group: 'Combat',
     label: 'Damage per bullet',
     hint: 'Taken off shield first, then health.',
@@ -195,6 +298,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'maxHealth',
+    modes: ['shoot'],
     group: 'Combat',
     label: 'Player health',
     hint: 'Never regenerates. Changing this refills both players.',
@@ -205,6 +309,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'respawnDelay',
+    modes: ['shoot'],
     group: 'Combat',
     label: 'Respawn delay (s)',
     hint: 'Pause after dying before returning at full health.',
@@ -215,6 +320,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'maxShield',
+    modes: ['shoot'],
     group: 'Shield',
     label: 'Shield amount',
     hint: 'Absorbs damage before health does. Set to 0 for no shield.',
@@ -225,6 +331,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'shieldRegenDelay',
+    modes: ['shoot'],
     group: 'Shield',
     label: 'Shield delay (s)',
     hint: 'Time without being hit before the shield starts recovering.',
@@ -235,6 +342,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'shieldRegenRate',
+    modes: ['shoot'],
     group: 'Shield',
     label: 'Shield recovery / s',
     hint: 'Shield points restored per second once recovery starts.',
@@ -245,6 +353,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'maxStamina',
+    modes: ['shoot'],
     group: 'Stamina',
     label: 'Stamina',
     hint: 'Pool that sidesteps and sprinting both draw from.',
@@ -255,6 +364,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'dashCost',
+    modes: ['shoot'],
     group: 'Stamina',
     label: 'Sidestep cost',
     hint: 'Stamina spent per sidestep. A sidestep is refused if you cannot pay.',
@@ -265,6 +375,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'sprintCost',
+    modes: ['shoot'],
     group: 'Stamina',
     label: 'Sprint cost / s',
     hint: 'Stamina drained per second of sprinting.',
@@ -275,6 +386,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'staminaRegenDelay',
+    modes: ['shoot'],
     group: 'Stamina',
     label: 'Stamina delay (s)',
     hint: 'Pause after spending stamina before it starts coming back.',
@@ -285,6 +397,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'staminaRegenRate',
+    modes: ['shoot'],
     group: 'Stamina',
     label: 'Stamina recovery / s',
     hint: 'Stamina restored per second once recovery starts.',
@@ -295,6 +408,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'dashDistance',
+    modes: ['shoot'],
     group: 'Dash',
     label: 'Sidestep distance',
     hint: 'How far a sidestep carries you, in world units.',
@@ -305,6 +419,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'dashDuration',
+    modes: ['shoot'],
     group: 'Dash',
     label: 'Sidestep duration (s)',
     hint: 'How long the sidestep takes. Shorter is snappier.',
@@ -315,6 +430,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'dashCooldown',
+    modes: ['shoot'],
     group: 'Dash',
     label: 'Sidestep cooldown (s)',
     hint: 'Wait before you can sidestep again, on top of the stamina cost.',
@@ -325,6 +441,7 @@ export const SETTING_DEFS = [
   },
   {
     id: 'doubleTapWindow',
+    modes: ['shoot'],
     group: 'Dash',
     label: 'Double-tap window (ms)',
     hint: 'Max gap between the two taps that trigger a sidestep or a sprint.',
